@@ -4,3 +4,6 @@ migrate:
 
 worker:
 	uv run celery -A ytkb.worker worker --loglevel=info
+
+api:
+	uv run api
