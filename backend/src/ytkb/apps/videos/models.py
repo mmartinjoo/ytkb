@@ -10,7 +10,8 @@ class Channel(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    url: Mapped[str] = mapped_column(String(150))
+    url: Mapped[str] = mapped_column(String(150), unique=True)
+    handle: Mapped[str] = mapped_column(String(100), unique=True)
     
     videos: Mapped[List["Video"]] = relationship(
         back_populates="channel", 
