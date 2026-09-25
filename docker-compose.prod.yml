@@ -1,0 +1,21 @@
+services:
+  frontend:
+    build:
+      target: prod
+
+  postgres:
+    ports: !override
+      - "127.0.0.1:${DATABASE_EXPOSED_PORT}:5432"
+
+  minio:
+    ports: !override
+      - "127.0.0.1:${MINIO_BACKEND_PORT}:9000"
+      - "127.0.0.1:${MINIO_FRONTEND_PORT}:9001"
+
+  qdrant:
+    ports: !override
+      - "127.0.0.1:${QDRANT_EXPOSED_PORT}:6333"
+
+  redis:
+    ports: !override
+      - "127.0.0.1:${REDIS_EXPOSED_PORT}:6333"

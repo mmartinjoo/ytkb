@@ -1,0 +1,12 @@
+.DS_Store
+.env
+minio
+postgres
+logs
+.vite
+node_modules
+./backend/.env
+__pycache__/
+airflow/logs
+*.spacy
+*.log
