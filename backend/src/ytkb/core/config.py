@@ -33,4 +33,6 @@ class Settings(BaseSettings):
     openai_api_key: str
     mistral_api_key: str
     
+    youtube_api_key: str
+    
 settings = Settings()

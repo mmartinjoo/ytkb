@@ -8,6 +8,7 @@ async def create_channel(data: CreateChannelData) -> Channel:
         channel = Channel(
             name=data.name,
             url=data.url,
+            handle=data.handle,
         )
         session.add(channel)
         await session.commit()
@@ -17,3 +18,7 @@ async def get_channels() -> list[Channel]:
     async with SessionLocal() as session:
         result = await session.scalars(select(Channel))
         return list(result.all())
+    
+async def find_channel(id: int) -> Channel:
+    async with SessionLocal() as session:
+        return await session.get_one(Channel, id)

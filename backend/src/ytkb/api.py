@@ -3,6 +3,7 @@ from fastapi import APIRouter, FastAPI
 
 from ytkb.core.config import settings
 from ytkb.apps.videos import routes as video_router
+from ytkb.apps.ingestion import routes as ingestion_router
 
 app = FastAPI(
     docs_url="/api/docs",
@@ -11,6 +12,7 @@ app = FastAPI(
 
 api = APIRouter(prefix="/api")
 api.include_router(video_router.router)
+api.include_router(ingestion_router.router)
 
 app.include_router(api)
 
