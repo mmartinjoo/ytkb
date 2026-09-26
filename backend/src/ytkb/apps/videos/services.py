@@ -1,5 +1,5 @@
-from sqlalchemy import select
-from ytkb.apps.videos.models import Channel
+from sqlalchemy import select, exists
+from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos.schemas import CreateChannelData
 from ytkb.core.db import SessionLocal
 
@@ -22,3 +22,12 @@ async def get_channels() -> list[Channel]:
 async def find_channel(id: int) -> Channel:
     async with SessionLocal() as session:
         return await session.get_one(Channel, id)
+    
+async def is_video_exist(youtube_id: str) -> Video:
+    async with SessionLocal() as session:
+        return await session.scalar(select(exists().where(Video.youtube_id == youtube_id)))
+    
+async def create_videos(videos: list[Video]):
+    async with SessionLocal() as session:
+        session.add_all(videos)
+        await session.commit()

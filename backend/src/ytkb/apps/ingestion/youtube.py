@@ -22,7 +22,7 @@ def get_all_videos(handle: str) -> list[YoutubeVideo]:
     page_token = None
     n = 0
     
-    while True and n <= 5:
+    while True and n <= 2:
         response = youtube.playlistItems().list(
             part="snippet,contentDetails",
             playlistId=playlist_id,
@@ -47,6 +47,35 @@ def get_all_videos(handle: str) -> list[YoutubeVideo]:
         
         n += 1
         
+def get_latest_videos(handle: str) -> list[YoutubeVideo]:
+    youtube = _get_youtube()
+    playlist_id = _get_uploads_playlist_id(
+        youtube=youtube,
+        handle=handle,
+    )
+    
+    videos = []
+    page_token = None
+    
+    response = youtube.playlistItems().list(
+        part="snippet,contentDetails",
+        playlistId=playlist_id,
+        maxResults=50,
+        pageToken=page_token,
+    ).execute()
+    
+    for item in response["items"]:
+        video_id = item["contentDetails"]["videoId"]
+        
+        videos.append(YoutubeVideo(
+            id=video_id,
+            title=item["snippet"]["title"],
+            url=f"https://www.youtube.com/watch?v={video_id}",
+            published_at=item["contentDetails"].get("videoPublishedAt"),
+        ))
+        
+    return videos
+            
 def _get_youtube() -> Resource:
     return build(
         serviceName="youtube", 
