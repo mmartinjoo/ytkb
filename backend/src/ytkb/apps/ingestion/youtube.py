@@ -1,9 +1,15 @@
 from datetime import datetime
+from pathlib import Path
+import subprocess
+import logging
 
+import yt_dlp
 from googleapiclient.discovery import build, Resource
 
 from pydantic import BaseModel
 from ytkb.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 class YoutubeVideo(BaseModel):
     id: str
@@ -75,6 +81,45 @@ def get_latest_videos(handle: str) -> list[YoutubeVideo]:
         ))
         
     return videos
+
+class DownloadedVideo(BaseModel):
+    video_path: str
+    audio_path: str
+
+def download_video(url: str, filename: str):
+    logger.info(f"downloading {url}")
+    
+    options = {
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+        "merge_output_format": "mp4",
+        "outtmpl": f"/tmp/{filename}" + ".%(ext)s",
+    }
+    
+    with yt_dlp.YoutubeDL(options) as ydl:
+        info = ydl.extract_info(url=url, download=True)
+        
+    video_path = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp4"    
+    audio_path = video_path.rsplit(".", 1)[0] + ".m4a"
+    
+    logger.info(f"video path={video_path}")
+    logger.info(f"audio path={audio_path}")    
+
+    subprocess.run([
+        "ffmpeg", 
+        "-i", 
+        video_path,
+        "-vn",          # no video in the audio output
+        "-c:a", "copy", # copy audio, do not re-encode
+        audio_path,
+    ], check=True)
+    
+    assert Path(video_path).exists()
+    assert Path(audio_path).exists()
+    
+    return DownloadedVideo(
+        video_path=video_path,
+        audio_path=audio_path,
+    )
             
 def _get_youtube() -> Resource:
     return build(

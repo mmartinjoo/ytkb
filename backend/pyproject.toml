@@ -17,6 +17,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.1.0",
     "redis>=5.0.0,<8.0.0",
     "google-api-python-client>=2.200.0",
+    "yt-dlp>=2026.8.19",
 ]
 
 [project.scripts] 

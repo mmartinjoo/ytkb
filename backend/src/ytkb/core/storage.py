@@ -14,3 +14,25 @@ try:
     s3.head_bucket(Bucket=settings.s3_bucket)
 except Exception:
     s3.create_bucket(Bucket=settings.s3_bucket)
+    
+def put_video_file(video_id: int, data: bytes) -> str:
+    key = f"videos/{video_id}/{video_id}.mp4"
+    s3.put_object(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        Body=data,
+        ContentType="video/mp4"
+    )
+    
+    return key
+
+def put_audio_file(video_id: int, data: bytes) -> str:
+    key = f"videos/{video_id}/{video_id}.m4a"
+    s3.put_object(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        Body=data,
+        ContentType="audio/mp4"
+    )
+    
+    return key

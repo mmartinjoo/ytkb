@@ -1,9 +1,13 @@
 import uvicorn
+
 from fastapi import APIRouter, FastAPI
 
 from ytkb.core.config import settings
+from ytkb.core import logging
 from ytkb.apps.videos import routes as video_router
 from ytkb.apps.ingestion import routes as ingestion_router
+
+logging.setup_logging()
 
 app = FastAPI(
     docs_url="/api/docs",
