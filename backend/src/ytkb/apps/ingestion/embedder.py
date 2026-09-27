@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def get_model() -> TextEmbedding:
-    return TextEmbedding("intfloat/multilingual-e5-large") # 1024-dim    
+    return TextEmbedding(
+        model_name="intfloat/multilingual-e5-large",
+        cache_dir="/tmp/fastembed_cache",
+    )
 
 def embed(texts: list[str]):
-    return get_model().embed(texts)
+    return list(get_model().embed(texts))
 
 async def embed2(video: Video):
     assert len(video.chunks) != 0
