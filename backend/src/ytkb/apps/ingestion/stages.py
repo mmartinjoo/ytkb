@@ -1,9 +1,11 @@
 import asyncio
 import logging
+from pathlib import Path
 
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
-from ytkb.apps.ingestion import services, youtube
+from ytkb.apps.ingestion import services, youtube, transcriber
+from ytkb.core import storage
 from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -51,11 +53,52 @@ async def sync_channel_stage(channel: Channel):
 async def download_stage(video: Video):
     downloaded_video = await asyncio.to_thread(
         youtube.download_video, 
+        video_id=video.id,
         url=video.url,
-        filename=video.id,
     )
     
-    await asyncio.gather(
+    s3_keys = await asyncio.gather(
         services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.video_path, type=services.VideoAssetType.VIDEO),
         services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.audio_path, type=services.VideoAssetType.AUDIO),
     )
+    
+    assert len(s3_keys) == 2
+    
+    await video_services.update_s3_keys(
+        video=video,
+        video_file_s3_key=s3_keys[0],
+        audio_file_s3_key=s3_keys[1],
+    )
+    
+    # logger.info(f"removing {path}")
+    # Path(path).unlink()
+
+async def chunk_stage(video: Video, downloaded_video: youtube.DownloadedVideo):
+    logger.info(f"chunking video {video.id}")
+    await asyncio.to_thread(
+        services.chunk_audio,
+        video_id=video.id,
+        downloaded_video=downloaded_video,
+    )
+    
+    s3_keys = await services.move_audio_chunks_to_s3(
+        video_id=video.id,
+        downloaded_video=downloaded_video,
+    )
+    
+    await video_services.create_video_chunks(
+        video=video,
+        chunk_s3_keys=s3_keys,
+    )
+    
+async def transcribe_stage(video: Video):
+    assert len(video.chunks) != 0
+    
+    for chunk in video.chunks:
+        data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)
+        tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
+        with open(tmp_file_path, "wb") as f:
+            await asyncio.to_thread(f.write, data)
+
+        await asyncio.to_thread(transcriber.transcribe, tmp_file_path)    
+        Path(tmp_file_path).unlink()

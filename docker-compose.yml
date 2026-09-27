@@ -54,10 +54,12 @@ services:
       dockerfile: ./backend/Dockerfile
     command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && ./wait-for-it.sh redis:6379 && ./wait-for-it.sh qdrant:6333 && ./wait-for-it.sh minio:9000 && make api"
     restart: unless-stopped
+    tty: true
     volumes:
       - ./backend:/usr/src/app
       - .env:/usr/src/app/.env
       - exclude_api:/usr/src/app/.venv
+      - huggingface_cache:/root/.cache/huggingface
     depends_on:
       - postgres
       - migrate  
@@ -91,7 +93,7 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
-    command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && make migrate"
+    command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && make runmigration"
     depends_on:
       - postgres
     volumes:
@@ -151,6 +153,7 @@ volumes:
   chroma_data:
   redis_data:
   qdrant_data:
+  huggingface_cache:
 
 networks:
   default:

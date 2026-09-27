@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-from sqlalchemy import ForeignKey, String, Integer
+from sqlalchemy import ForeignKey, String, Integer, UniqueConstraint
 
 from ytkb.core.models import Base
 
@@ -30,6 +30,8 @@ class Video(Base):
     content: Mapped[Optional[str]]
     channel_id: Mapped[int] = mapped_column(ForeignKey("videos__channels.id"))
     youtube_id: Mapped[str] = mapped_column(String(100), unique=True)
+    video_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
+    audio_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
 
     channel: Mapped["Channel"] = relationship(back_populates="videos")
     chunks: Mapped[List["VideoChunk"]] = relationship(
@@ -45,10 +47,15 @@ class VideoChunk(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     position: Mapped[int] = mapped_column(Integer())
-    content: Mapped[str]
+    content: Mapped[Optional[str]]
     video_id: Mapped[int] = mapped_column(ForeignKey("videos__videos.id"))
+    audio_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
 
     video: Mapped["Video"] = relationship(back_populates="chunks")
+    
+    __table_args__ = (
+        UniqueConstraint("video_id", "position"),
+    )
     
     def __repr__(self):
         return f"VideoChunk(id={self.id}, video_id={self.video_id}, position={self.position}, content={self.content[:100]}...)"
