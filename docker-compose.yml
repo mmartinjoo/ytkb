@@ -153,7 +153,7 @@ services:
     ports:
       - "${MEILISEARCH_EXPOSED_PORT}:7700"
     environment:
-      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY}
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY}
       MEILI_ENV: development
       MEILI_NO_ANALYTICS: "true"
     volumes:
