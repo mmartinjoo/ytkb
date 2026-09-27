@@ -63,13 +63,14 @@ async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
             await session.execute(stmt)
         await session.commit()
         
-async def update_chunk_content(chunk_id: int, content: str):
+async def update_chunk_content(chunk_id: int, content_with_timestamps: str, content_without_timestamps: str):
     async with SessionLocal() as session:
         await session.execute(
             update(VideoChunk)
                 .where(VideoChunk.id == chunk_id)
                 .values(
-                    content = content,
+                    content_with_timestamps=content_with_timestamps,
+                    content_without_timestamps=content_without_timestamps,
                 )    
         )
         await session.commit()
@@ -77,19 +78,35 @@ async def update_chunk_content(chunk_id: int, content: str):
 async def update_video_content(video_id: int):
     async with SessionLocal() as session:
         video = await session.get_one(
-            Video, 379,
+            Video, 
+            video_id,
             options=[selectinload(Video.chunks)],
         )
         
-        content = ""
+        content_with_timestamps = ""
+        content_without_timestamps = ""
         for chunk in video.chunks:
-            content += chunk.content + "\n"
+            content_with_timestamps += chunk.content_with_timestamps + "\n"
+            content_without_timestamps += chunk.content_without_timestamps + "\n"
         
         await session.execute(
             update(Video)
                 .where(Video.id == video_id)
                 .values(
-                    content = content
+                    content_with_timestamps=content_with_timestamps,
+                    content_without_timestamps=content_without_timestamps,
                 )
         )
         await session.commit()
+        
+async def find_video_with_chunks(video_id: int) -> Video:
+    async with SessionLocal() as session:
+        return await session.get_one(
+            Video,
+            video_id,
+            options=[selectinload(Video.chunks)],
+        )
+        
+async def find_video(video_id: int) -> Video:
+    async with SessionLocal() as session:
+        return await session.get_one(Video, video_id)

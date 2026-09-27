@@ -6,6 +6,7 @@ from mistralai.client import Mistral
 from faster_whisper import WhisperModel
 from huggingface_hub import snapshot_download
 
+from pydantic import BaseModel
 from ytkb.core import storage
 from ytkb.core.config import settings
 
@@ -19,14 +20,24 @@ def get_model() -> WhisperModel:
     path = snapshot_download("Systran/faster-whisper-large-v3")
     return WhisperModel(path, device="cpu", compute_type="int8")
 
-def transcribe(audio_file_path: str) -> str:
-    transcription = ""
+class TranscribeResponse(BaseModel):
+    content_with_timestamps: str
+    content_without_timestamps: str
+
+def transcribe(audio_file_path: str) -> TranscribeResponse:
+    content_with_timestamps = ""
+    content_without_timestamps = ""
     segments, info = get_model().transcribe(audio_file_path, beam_size=5)
+
     for segment in segments:
-        line = "[%.2fs -> %.2fs] %s\n" % (segment.start, segment.end, segment.text)
-        print(line)
-        transcription += line
-    return transcription
+        content_without_timestamps += f"{segment.text}\n"
+        content_with_timestamps = f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
+        print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n")
+
+    return TranscribeResponse(
+        content_with_timestamps=content_with_timestamps,
+        content_without_timestamps=content_without_timestamps
+    )
         
 async def transcribe_mistral(video_id: int):
     logger.info(f"transcribing {video_id} with Mistral...")

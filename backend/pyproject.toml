@@ -20,6 +20,8 @@ dependencies = [
     "yt-dlp>=2026.8.19",
     "faster-whisper>=1.2.1",
     "mistralai>=2.10.1",
+    "qdrant-client>=1.19.1",
+    "fastembed>=0.8.1",
 ]
 
 [project.scripts] 

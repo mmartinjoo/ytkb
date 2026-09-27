@@ -36,7 +36,7 @@ def chunk_audio(video_id: int, downloaded_video: DownloadedVideo):
         "-i", downloaded_video.audio_path,
         "-c:a", "copy",
         "-f", "segment",
-        "-segment_time", "300",
+        "-segment_time", "180",
         "-reset_timestamps", "1",
         f"{downloaded_video.chunks_path}/{video_id}_%03d.m4a",
     ]

@@ -27,7 +27,8 @@ class Video(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
     url: Mapped[str] = mapped_column(String(250))
-    content: Mapped[Optional[str]]
+    content_with_timestamps: Mapped[Optional[str]]
+    content_without_timestamps: Mapped[Optional[str]]
     channel_id: Mapped[int] = mapped_column(ForeignKey("videos__channels.id"))
     youtube_id: Mapped[str] = mapped_column(String(100), unique=True)
     video_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
@@ -47,7 +48,8 @@ class VideoChunk(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     position: Mapped[int] = mapped_column(Integer())
-    content: Mapped[Optional[str]]
+    content_with_timestamps: Mapped[Optional[str]]
+    content_without_timestamps: Mapped[Optional[str]]
     video_id: Mapped[int] = mapped_column(ForeignKey("videos__videos.id"))
     audio_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
 

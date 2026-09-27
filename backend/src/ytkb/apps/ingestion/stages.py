@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
-from ytkb.apps.ingestion import services, youtube, transcriber
+from ytkb.apps.ingestion import services, youtube, transcriber, embedder
 from ytkb.core import storage
 from ytkb.core.db import SessionLocal
 
@@ -105,13 +105,20 @@ async def transcribe_stage(video: Video):
         with open(tmp_file_path, "wb") as f:
             await asyncio.to_thread(f.write, data)
 
-        content = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
-        assert content is not None and len(content) != 0
+        resp = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
+        assert resp.content_with_timestamps is not None and len(resp.content_with_timestamps) != 0
+        assert resp.content_without_timestamps is not None and len(resp.content_without_timestamps) != 0
         
         await video_services.update_chunk_content(
             chunk_id=chunk.id,
-            content=content,
+            content_with_timestamps=resp.content_with_timestamps,
+            content_without_timestamps=resp.content_without_timestamps,
         )
         Path(tmp_file_path).unlink()
         
     await video_services.update_video_content(video.id)
+    
+async def embed_stage(video: Video):
+    assert len(video.chunks) != 0
+    
+    await embedder.embed(video=video)
