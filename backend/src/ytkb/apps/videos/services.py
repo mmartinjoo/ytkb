@@ -1,4 +1,5 @@
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from ytkb.apps.videos.models import Channel, Video, VideoChunk
 from ytkb.apps.videos.schemas import CreateChannelData
@@ -33,10 +34,16 @@ async def create_videos(videos: list[Video]):
         session.add_all(videos)
         await session.commit()
         
-async def update_s3_keys(video: Video, video_file_s3_key: str, audio_file_s3_key: str):    
+async def update_s3_keys(video_id: int, video_file_s3_key: str, audio_file_s3_key: str):    
     async with SessionLocal() as session:
-        video.audio_file_s3_key = audio_file_s3_key
-        video.video_file_s3_key = video_file_s3_key
+        await session.execute(
+            update(Video)
+            .where(Video.id == video_id)
+            .values(
+                audio_file_s3_key = audio_file_s3_key,
+                video_file_s3_key = video_file_s3_key
+            )
+        )
         await session.commit()
         
 async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
@@ -54,4 +61,35 @@ async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
                 },
             )
             await session.execute(stmt)
+        await session.commit()
+        
+async def update_chunk_content(chunk_id: int, content: str):
+    async with SessionLocal() as session:
+        await session.execute(
+            update(VideoChunk)
+                .where(VideoChunk.id == chunk_id)
+                .values(
+                    content = content,
+                )    
+        )
+        await session.commit()
+        
+async def update_video_content(video_id: int):
+    async with SessionLocal() as session:
+        video = await session.get_one(
+            Video, 379,
+            options=[selectinload(Video.chunks)],
+        )
+        
+        content = ""
+        for chunk in video.chunks:
+            content += chunk.content + "\n"
+        
+        await session.execute(
+            update(Video)
+                .where(Video.id == video_id)
+                .values(
+                    content = content
+                )
+        )
         await session.commit()

@@ -65,7 +65,7 @@ async def download_stage(video: Video):
     assert len(s3_keys) == 2
     
     await video_services.update_s3_keys(
-        video=video,
+        video_id=video.id,
         video_file_s3_key=s3_keys[0],
         audio_file_s3_key=s3_keys[1],
     )
@@ -95,10 +95,23 @@ async def transcribe_stage(video: Video):
     assert len(video.chunks) != 0
     
     for chunk in video.chunks:
+        logger.info(f"transcribing video chunk {chunk.id}")
+        
+        assert chunk.audio_file_s3_key is not None
+        
         data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)
         tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
+        
         with open(tmp_file_path, "wb") as f:
             await asyncio.to_thread(f.write, data)
 
-        await asyncio.to_thread(transcriber.transcribe, tmp_file_path)    
+        content = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
+        assert content is not None and len(content) != 0
+        
+        await video_services.update_chunk_content(
+            chunk_id=chunk.id,
+            content=content,
+        )
         Path(tmp_file_path).unlink()
+        
+    await video_services.update_video_content(video.id)

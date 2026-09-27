@@ -19,10 +19,14 @@ def get_model() -> WhisperModel:
     path = snapshot_download("Systran/faster-whisper-large-v3")
     return WhisperModel(path, device="cpu", compute_type="int8")
 
-def transcribe(audio_file_path: str):
+def transcribe(audio_file_path: str) -> str:
+    transcription = ""
     segments, info = get_model().transcribe(audio_file_path, beam_size=5)
     for segment in segments:
-        print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+        line = "[%.2fs -> %.2fs] %s\n" % (segment.start, segment.end, segment.text)
+        print(line)
+        transcription += line
+    return transcription
         
 async def transcribe_mistral(video_id: int):
     logger.info(f"transcribing {video_id} with Mistral...")
