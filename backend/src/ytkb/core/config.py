@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     
     redis_url: str
     
+    meilisearch_url: str
+    meilisearch_api_key: str
+    
     openai_api_key: str
     mistral_api_key: str
     

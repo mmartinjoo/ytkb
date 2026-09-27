@@ -19,3 +19,9 @@ services:
   redis:
     ports: !override
       - "127.0.0.1:${REDIS_EXPOSED_PORT}:6333"
+
+  meilisearch:
+    ports: !override
+      - "127.0.0.1:${MEILISEARCH_EXPOSED_PORT}:6333"
+    environment:
+      MEILI_ENV: production

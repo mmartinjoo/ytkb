@@ -18,6 +18,8 @@ x-common-variables: &env_vars
   QDRANT_VECTOR_DIMS: ${QDRANT_VECTOR_DIMS}
   REDIS_URL: ${REDIS_URL}
   YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+  MEILISEARCH_URL: ${MEILISEARCH_URL}
+  MEILISEARCH_API_KEY: ${MEILISEARCH_MASTER_KEY}
 
 name: ytkb
 
@@ -65,7 +67,8 @@ services:
       - migrate  
       - redis
       - minio
-      - qdrant    
+      - qdrant   
+      - meilisearch 
     environment: *env_vars
 
   worker:
@@ -86,7 +89,8 @@ services:
       - migrate  
       - redis
       - minio
-      - qdrant    
+      - qdrant   
+      - meilisearch 
     environment: *env_vars
 
   migrate:
@@ -143,6 +147,18 @@ services:
     volumes:
       - redis_data:/data
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.54.0
+    restart: unless-stopped
+    ports:
+      - "${MEILISEARCH_EXPOSED_PORT}:7700"
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY}
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meilisearch_data:/meili_data
+
 volumes:
   exclude_fe:
   exclude_api:
@@ -152,6 +168,7 @@ volumes:
   minio_data:
   chroma_data:
   redis_data:
+  meilisearch_data:
   qdrant_data:
   huggingface_cache:
 

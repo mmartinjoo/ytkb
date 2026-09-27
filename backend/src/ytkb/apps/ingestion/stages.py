@@ -5,7 +5,7 @@ from pathlib import Path
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
 from ytkb.apps.ingestion import services, youtube, transcriber, embedder
-from ytkb.core import storage
+from ytkb.core import storage, meilisearch
 from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -120,5 +120,8 @@ async def transcribe_stage(video: Video):
     
 async def embed_stage(video: Video):
     assert len(video.chunks) != 0
-    
     await embedder.embed(video=video)
+    
+async def index_stage(video: Video):
+    assert len(video.chunks) != 0
+    await asyncio.to_thread(meilisearch.index_video, video=video)
