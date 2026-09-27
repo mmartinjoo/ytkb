@@ -15,20 +15,16 @@ task = index.update_settings({
 })
 client.wait_for_task(task.task_uid)
 
-def index_video(video: Video):
-    assert len(video.chunks) != 0
-    
-    docs: list[dict] = []
-    for chunk in video.chunks:
-        docs.append({
-            "id": {chunk.id},
-            "video_id": video.id,
-            "title": video.title,
-            "url": video.url,
-            "position": chunk.position,
-            "content": chunk.content_without_timestamps,    
-        })
-        
+class MeiliSearchChunk(BaseModel):
+    chunk_id: int
+    video_id: int
+    title: str
+    url: str
+    position: int
+    content: str
+
+def index_video(chunks: list[MeiliSearchChunk]):
+    docs = [c.model_dump() for c in chunks]
     task = index.add_documents(docs)
     client.wait_for_task(task.task_uid)
     

@@ -1,6 +1,7 @@
 import asyncio
 from functools import lru_cache
 import logging
+from typing import Iterable
 
 from fastembed import TextEmbedding
 
@@ -13,7 +14,10 @@ logger = logging.getLogger(__name__)
 def get_model() -> TextEmbedding:
     return TextEmbedding("intfloat/multilingual-e5-large") # 1024-dim    
 
-async def embed(video: Video):
+def embed(texts: list[str]):
+    return get_model().embed(texts)
+
+async def embed2(video: Video):
     assert len(video.chunks) != 0
     texts = []
     chunk_ids = []

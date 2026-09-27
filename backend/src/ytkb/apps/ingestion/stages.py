@@ -5,7 +5,7 @@ from pathlib import Path
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
 from ytkb.apps.ingestion import services, youtube, transcriber, embedder
-from ytkb.core import storage, meilisearch
+from ytkb.core import storage, meilisearch, qdrant
 from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -120,8 +120,34 @@ async def transcribe_stage(video: Video):
     
 async def embed_stage(video: Video):
     assert len(video.chunks) != 0
-    await embedder.embed(video=video)
+    
+    texts = []
+    chunk_ids = []
+    for chunk in video.chunks:
+        texts.append(chunk.content_without_timestamps)
+        chunk_ids.append(chunk.id)
+            
+    vectors = await asyncio.to_thread(embedder.embed, texts=texts)
+    await asyncio.to_thread(
+        qdrant.upsert,
+        collection_name="video_chunks",
+        vectors=vectors,
+        video_id=video.id,
+        video_chunk_ids=chunk_ids,
+    )
     
 async def index_stage(video: Video):
     assert len(video.chunks) != 0
-    await asyncio.to_thread(meilisearch.index_video, video=video)
+    
+    meili_chunks: list[meilisearch.MeiliSearchChunk] = []
+    for chunk in video.chunks:
+        meili_chunks.append(meilisearch.MeiliSearchChunk(
+            chunk_id=chunk.id,
+            video_id=video.id,
+            title=video.title,
+            url=video.url,
+            position=chunk.position,
+            content=chunk.content_without_timestamps,
+        ))
+    
+    await asyncio.to_thread(meilisearch.index_video, chunks=meili_chunks)

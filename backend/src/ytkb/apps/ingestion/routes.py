@@ -37,3 +37,8 @@ async def transcribe():
 async def embed():
     video = await video_services.find_video_with_chunks(video_id=379)
     return await stages.embed_stage(video)
+
+@router.get("/index")
+async def index():
+    video = await video_services.find_video_with_chunks(video_id=379)
+    return await stages.index_stage(video)
