@@ -1,22 +1,34 @@
 import meilisearch
+from meilisearch.errors import MeilisearchApiError
 
 from pydantic import BaseModel
 from ytkb.apps.videos.models import Video
 from ytkb.core.config import settings
 
 client = meilisearch.Client(settings.meilisearch_url, settings.meilisearch_api_key)
-task = client.create_index("chunks", {"primaryKey": "id"})
-client.wait_for_task(task.task_uid)
-index = client.index("chunks")
+index = None
 
-task = index.update_settings({
-    "searchableAttributes": ["content", "title"],
-    "displayedAttributes": ["id", "video_id", "title", "url", "position", "content"],
-})
-client.wait_for_task(task.task_uid)
+try:
+    index = client.get_index("chunks")
+except MeilisearchApiError as exc:
+    task = client.create_index("chunks", {"primaryKey": "id"})
+    task = client.wait_for_task(task.task_uid)
+    if task.status == "failed":
+        raise RuntimeError(task.error)
+    
+    index = client.index("chunks")
+    task = index.update_settings({
+        "searchableAttributes": ["content", "title"],
+        "displayedAttributes": ["id", "video_id", "title", "url", "position", "content"],
+    })
+    task = client.wait_for_task(task.task_uid)
+    if task.status == "failed":
+        raise RuntimeError(task.error)
+    
+assert index is not None
 
 class MeiliSearchChunk(BaseModel):
-    chunk_id: int
+    id: int
     video_id: int
     title: str
     url: str
@@ -26,7 +38,9 @@ class MeiliSearchChunk(BaseModel):
 def index_video(chunks: list[MeiliSearchChunk]):
     docs = [c.model_dump() for c in chunks]
     task = index.add_documents(docs)
-    client.wait_for_task(task.task_uid)
+    task = client.wait_for_task(task.task_uid)
+    if task.status == "failed":
+        raise RuntimeError(task.error)
     
 class SearchResult(BaseModel):
     video_id: int

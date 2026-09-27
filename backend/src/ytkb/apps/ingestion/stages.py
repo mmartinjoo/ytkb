@@ -142,12 +142,12 @@ async def index_stage(video: Video):
     meili_chunks: list[meilisearch.MeiliSearchChunk] = []
     for chunk in video.chunks:
         meili_chunks.append(meilisearch.MeiliSearchChunk(
-            chunk_id=chunk.id,
+            id=chunk.id,
             video_id=video.id,
             title=video.title,
             url=video.url,
             position=chunk.position,
             content=chunk.content_without_timestamps,
         ))
-    
+        
     await asyncio.to_thread(meilisearch.index_video, chunks=meili_chunks)
