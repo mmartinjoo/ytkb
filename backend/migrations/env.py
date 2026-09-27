@@ -11,6 +11,7 @@ from ytkb.core.config import settings
 from ytkb.core.models import Base
 
 import ytkb.apps.videos.models
+import ytkb.apps.ingestion.models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
