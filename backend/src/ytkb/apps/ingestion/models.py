@@ -1,6 +1,6 @@
 from datetime import datetime
 import enum
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import ForeignKey, Integer, DateTime, String, Text, Enum, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -100,6 +100,12 @@ class PipelineRun(Base):
     )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
+    step_runs: Mapped[List["StepRun"]] = relationship(
+        back_populates="pipeline_run", 
+        cascade="all, delete-orphan",
+        lazy="raise",
+    )
+    
 class StepStatus(enum.Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -111,7 +117,7 @@ class StepRun(Base):
         
     id: Mapped[int] = mapped_column(primary_key=True)
     pipeline_run_id: Mapped[int] = mapped_column(ForeignKey("ingestion__pipeline_runs.id", ondelete="CASCADE"))
-    pipeline_run: Mapped["PipelineRun"] = relationship()
+    pipeline_run: Mapped["PipelineRun"] = relationship(back_populates="step_runs")
     
     step_name: Mapped[str] = mapped_column(String(30))
     status: Mapped[StepStatus] = mapped_column(
@@ -135,6 +141,10 @@ class StepRun(Base):
     claimed_until: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
     )
     
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
