@@ -7,15 +7,15 @@ from ytkb.apps.ingestion.models import PipelineStage
 from ytkb.apps.videos import services as video_services
 from ytkb.apps.videos.models import Video
 from ytkb.core.db import SessionLocal
+from ytkb.apps.ingestion.pipeline import executor
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
 @router.get("/test")
 async def test():
-    videos = await video_queue.claim(PipelineStage.DOWNLOAD)
-    ids = [v.id for v in videos]
-    return ids
+    video = await video_services.find_video(379)
+    await executor.create_pipeline_run(video)
 
 @router.get("/discover/{channel_id}")
 async def discover(channel_id: int):

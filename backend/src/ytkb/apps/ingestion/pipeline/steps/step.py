@@ -4,11 +4,10 @@ from enum import Enum
 from typing import ClassVar
 
 from pydantic import BaseModel
+from ytkb.apps.ingestion.pipeline.steps.chunk import ChunkStep
+from ytkb.apps.ingestion.pipeline.steps.download import DownloadStep
 from ytkb.apps.videos.models import Video
-
-class StepEnum(Enum):
-    DOWNLOAD = "download"
-    CHUNK = "chunk"
+        
     
 class VerifyError(Exception):
     pass
@@ -26,3 +25,14 @@ class Step(ABC):
     @abstractmethod
     async def verify(self, video: Video): ...
     
+class StepEnum(Enum):
+    DOWNLOAD = "DOWNLOAD"
+    CHUNK = "CHUNK"
+    
+    @classmethod
+    def create_step(cls, value: "StepEnum") -> Step:
+        if value == cls.DOWNLOAD:
+            return DownloadStep()
+        if value == cls.CHUNK:
+            return ChunkStep()
+        raise ValueError(f"invalid step: {value}")
