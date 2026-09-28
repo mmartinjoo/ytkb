@@ -54,19 +54,33 @@ async def download_stage():
     )
     logger.info(f"{len(results)} tasks finished")
     
-    for result in results:
-        if isinstance(result, BaseException):
-            logger.error(f"task failed: {repr(result)}")            
-            continue
-        
-        try:
-            assert isinstance(result, dict)
-            ingestion_task_result = tasks.IngestionBatchTaskResult(**result)
-        except Exception as exc:
-            logger.error(f"failed to convert task result: {repr(exc)}, result: {result}")
-            continue
-        
-        await mark_batch_result(ingestion_task_result)
+    await process_task_results(results)
+    
+async def transition_to_chunk_stage():
+    videos = await video_pipeline.fetch(
+        stage=PipelineStage.DOWNLOAD,
+        stage_status=PipelineStageStatus.DONE,
+    )
+    
+    for video in videos:
+        audio_file_exists = await asyncio.to_thread(storage.exists, key=video.video_file_s3_key)
+        audio_file_empty = await asyncio.to_thread(storage.empty, key=video.video_file_s3_key)
+        if not audio_file_exists or audio_file_empty:
+            await video_pipeline.mark_many(
+                [video], 
+                stage_status=PipelineStageStatus.FAILED,
+                error=f"video file at {video.video_file_s3_key} is missing or empty",
+            )
+            
+        audio_file_exists = await asyncio.to_thread(storage.exists, key=video.audio_file_s3_key)
+        audio_file_empty = await asyncio.to_thread(storage.empty, key=video.audio_file_s3_key)
+        if not audio_file_exists or audio_file_empty:
+            await video_pipeline.mark_many(
+                [video], 
+                stage_status=PipelineStageStatus.FAILED,
+                error=f"video file at {video.audio_file_s3_key} is missing or empty",
+            )
+            
     
 async def chunk_stage():
     videos = video_queue.claim(stage=PipelineStage.CHUNK, n=100)
@@ -138,9 +152,23 @@ def chunked(items: list, size: int):
     for i in range(0, len(items), size):
         yield items[i:i + size]
         
+async def process_task_results(results: list[dict]):
+    for result in results:
+        if isinstance(result, BaseException):
+            logger.error(f"task failed: {repr(result)}")            
+            continue
+        
+        try:
+            assert isinstance(result, dict)
+            ingestion_task_result = tasks.IngestionBatchTaskResult(**result)
+        except Exception as exc:
+            logger.error(f"failed to convert task result: {repr(exc)}, result: {result}")
+            continue
+        
+        await mark_batch_result(ingestion_task_result)
+        
 async def mark_batch_result(result: tasks.IngestionBatchTaskResult):
     assert isinstance(result, tasks.IngestionBatchTaskResult), f"expected: tasks.IngestionBatchTaskResult, got: {type(result)}"
-    print(type(result))
     
     succeeded_videos = await video_services.fetch_videos_by_ids(
         [t.video_id for t in result.succeeded_tasks],

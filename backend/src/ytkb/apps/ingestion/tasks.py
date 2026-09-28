@@ -49,7 +49,11 @@ async def adiscover_channel(channel_id: int):
         
 @celery.app.task
 def download_video_batch(video_ids: list[int]) -> dict:
-    return asyncio.run(adownload_video_batch(video_ids))        
+    return asyncio.run(adownload_video_batch(video_ids))       
+
+@celery.app.task
+def chunk_video_batch(video_ids: list[int]) -> dict:
+    return asyncio.run(achunk_video_batch(video_ids))         
     
 async def adownload_video_batch(video_ids: list[int]) -> dict:
     videos = await video_services.fetch_videos_by_ids(video_ids)
@@ -57,6 +61,12 @@ async def adownload_video_batch(video_ids: list[int]) -> dict:
     coros = [adownload_video(semaphore, v) for v in videos]
     results = await asyncio.gather(*coros)
     return create_batch_result(results)
+
+async def achunk_video_batch(video_ids: list[int]) -> dict:
+    videos = await video_services.fetch_videos_by_ids(video_ids)
+    semaphore = asyncio.Semaphore(8)
+    coros = [achunk_video(semaphore, v) for v in videos]
+    return await asyncio.gather(*coros)
 
 async def adownload_video(semaphore: asyncio.Semaphore, video: Video) -> IngestionTaskResult:
     try:
@@ -91,18 +101,6 @@ async def adownload_video(semaphore: asyncio.Semaphore, video: Video) -> Ingesti
             ok=True,
             error=repr(exc),
         )
-        
-@celery.app.task
-def chunk_video_batch(video_ids: list[int]):
-    asyncio.run(achunk_video_batch(video_ids))        
-    
-async def achunk_video_batch(video_ids: list[int]):
-    videos = await video_services.fetch_videos_by_ids(video_ids)
-    semaphore = asyncio.Semaphore(8)
-    coros = []
-    for video in videos:
-        coros.append(achunk_video(semaphore, video))
-    await asyncio.gather(*coros)
         
 async def achunk_video(video: Video):
     logger.info(f"chunking video {video.id}")
