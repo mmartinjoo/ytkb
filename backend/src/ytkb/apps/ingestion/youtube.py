@@ -17,7 +17,7 @@ class YoutubeVideo(BaseModel):
     url: str
     published_at: datetime
 
-def get_all_videos(handle: str) -> list[YoutubeVideo]:
+def get_all_videos(handle: str, max_pages: int = 2) -> list[YoutubeVideo]:
     youtube = _get_youtube()
     playlist_id = _get_uploads_playlist_id(
         youtube=youtube,
@@ -28,7 +28,7 @@ def get_all_videos(handle: str) -> list[YoutubeVideo]:
     page_token = None
     n = 0
     
-    while True and n <= 2:
+    while True and n <= max_pages:
         response = youtube.playlistItems().list(
             part="snippet,contentDetails",
             playlistId=playlist_id,
@@ -49,6 +49,9 @@ def get_all_videos(handle: str) -> list[YoutubeVideo]:
         page_token = response.get("nextPageToken")
         
         if not page_token:
+            return videos
+        
+        if n >= max_pages:
             return videos
         
         n += 1

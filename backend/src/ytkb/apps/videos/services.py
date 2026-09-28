@@ -1,4 +1,4 @@
-from sqlalchemy import select, exists, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from ytkb.apps.videos.models import Channel, Video, VideoChunk
@@ -16,23 +16,24 @@ async def create_channel(data: CreateChannelData) -> Channel:
         await session.commit()
     return channel
 
-async def get_channels() -> list[Channel]:
+async def fetch_channels() -> list[Channel]:
     async with SessionLocal() as session:
-        result = await session.scalars(select(Channel))
+        result = await session.scalars(
+            select(Channel).options(selectinload(Channel.videos))
+        )
         return list(result.all())
     
 async def find_channel(id: int) -> Channel:
     async with SessionLocal() as session:
         return await session.get_one(Channel, id)
     
-async def is_video_exist(youtube_id: str) -> Video:
-    async with SessionLocal() as session:
-        return await session.scalar(select(exists().where(Video.youtube_id == youtube_id)))
-    
-async def create_videos(videos: list[Video]):
-    async with SessionLocal() as session:
-        session.add_all(videos)
-        await session.commit()
+def new_video(channel: Channel, title: str, url: str, youtube_id: str) -> Video:
+    return Video(
+        title=title,
+        url=url,
+        channel=channel,
+        youtube_id=youtube_id,
+    )
         
 async def update_s3_keys(video_id: int, video_file_s3_key: str, audio_file_s3_key: str):    
     async with SessionLocal() as session:
@@ -110,3 +111,11 @@ async def find_video_with_chunks(video_id: int) -> Video:
 async def find_video(video_id: int) -> Video:
     async with SessionLocal() as session:
         return await session.get_one(Video, video_id)
+    
+async def find_channel_with_videos(channel_id: int) -> Channel:
+    async with SessionLocal() as session:
+        return await session.get_one(
+            Channel,
+            channel_id,
+            options=[selectinload(Channel.videos)],
+        )

@@ -16,6 +16,7 @@ class Channel(Base):
     videos: Mapped[List["Video"]] = relationship(
         back_populates="channel", 
         cascade="all, delete-orphan",
+        lazy="raise",
     )
     
     def __repr__(self):
@@ -38,6 +39,7 @@ class Video(Base):
     chunks: Mapped[List["VideoChunk"]] = relationship(
         back_populates="video", 
         cascade="all, delete-orphan",
+        lazy="raise",
     )
     
     def __repr__(self):

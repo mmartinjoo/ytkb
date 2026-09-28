@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from pathlib import Path
+from pprint import pprint
 
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
@@ -10,45 +11,27 @@ from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-async def discover_channel_stage(channel_id: str):
-    channel = await video_services.find_channel(id=channel_id)
+async def discover_channel_stage(channel: Channel):
     yt_videos = await asyncio.to_thread(youtube.get_all_videos, handle=channel.handle)
-    videos = []
-    for v in yt_videos:
-        videos.append(Video(
-            title=v.title,
-            url=v.url,
-            channel_id=channel.id,
-            youtube_id=v.id,
-        ))
-        
-    async with SessionLocal() as session:
-        session.add_all(videos)
-        await session.commit()
+    await sync_channel_stage(channel=channel, yt_videos=yt_videos)
         
 async def sync_channels_stage():
-    channels = await video_services.get_channels()
-    coros = []
+    channels = await video_services.fetch_channels()
     for c in channels:
-        coros.append(sync_channel_stage(channel=c))
-    await asyncio.gather(*coros)
+        yt_videos = await asyncio.to_thread(youtube.get_latest_videos, handle=c.handle)
+        await sync_channel_stage(channel=c, yt_videos=yt_videos)
         
-async def sync_channel_stage(channel: Channel):
-    yt_videos = await asyncio.to_thread(youtube.get_latest_videos, handle=channel.handle)
-    videos = []
-    for v in yt_videos:
-        found = await video_services.is_video_exist(youtube_id=v.id)
-        if found:
-            continue
-
-        videos.append(Video(
-            title=v.title,
-            url=v.url,
-            channel_id=channel.id,
-            youtube_id=v.id,
-        ))
-        
-    await video_services.create_videos(videos)
+async def sync_channel_stage(channel: Channel, yt_videos: list[youtube.YoutubeVideo]):
+    existing_yt_ids = [v.youtube_id for v in channel.videos]
+    new_yt_videos = [v for v in yt_videos if v.id not in existing_yt_ids]
+    
+    videos = [video_services.new_video(channel, v.title, v.url, v.id) for v in new_yt_videos]
+    pipeline_items = [services.new_pipeline_item(v) for v in videos]
+    queue_items = [services.new_queue_item(v) for v in videos]
+    
+    async with SessionLocal() as session:
+        session.add_all([*videos, *pipeline_items, *queue_items])
+        await session.commit()
     
 async def download_stage(video: Video):
     downloaded_video = await asyncio.to_thread(

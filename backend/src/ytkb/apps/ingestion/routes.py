@@ -10,12 +10,10 @@ from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
-@router.get("/yt")
-async def get_yt():
-    return await asyncio.to_thread(
-        youtube.get_all_videos,
-        handle="@Topburkolo",
-    )
+@router.get("/discover/{channel_id}")
+async def discover(channel_id: int):
+    channel = await video_services.find_channel_with_videos(channel_id=channel_id)
+    return await stages.discover_channel_stage(channel=channel)
     
 @router.get("/download")
 async def download():
