@@ -32,7 +32,7 @@ async def claim(stage: PipelineStage, n: int = 100) -> list[Video]:
                 VideoQueueItem.claimed_until <= datetime.now(),
             ),
         )
-        .order_by(VideoQueueItem.queued_at.desc())
+        .order_by(VideoQueueItem.queued_at.asc())
         .limit(n)
         .with_for_update(
             of=VideoQueueItem,

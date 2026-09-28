@@ -24,8 +24,7 @@ async def discover(channel_id: int):
     
 @router.get("/download")
 async def download():
-    video = await video_services.find_video(video_id=379)
-    return await stages.download_stage(video)
+    return await stages.download_stage()
 
 @router.get("/chunk")
 async def chunk():

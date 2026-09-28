@@ -31,18 +31,25 @@ async def move_video_asset_to_s3(video_id: int, path: str, type: VideoAssetType)
             data=data,
         )
         
-def chunk_audio(video_id: int, downloaded_video: DownloadedVideo):
-    logger.info(f"chunk audio for {video_id}")
-    assert Path(downloaded_video.chunks_path).exists()
+async def chunk_audio(video: Video) -> list[S3Key]:
+    logger.info(f"chunk audio for {video.id}")
+    
+    data = storage.get_file(key=video.audio_file_s3_key)
+    tmp_audio_path = f"/tmp/{video.id}/{video.id}.m4a"
+    tmp_chunk_folder_path = f"/tmp/{video.id}/chunks"
+    Path(tmp_chunk_folder_path).mkdir(parents=True)
+    
+    with open(tmp_audio_path, "wb") as f:
+        f.write(data)
     
     command = [
         "ffmpeg",
-        "-i", downloaded_video.audio_path,
+        "-i", tmp_audio_path,
         "-c:a", "copy",
         "-f", "segment",
         "-segment_time", "180",
         "-reset_timestamps", "1",
-        f"{downloaded_video.chunks_path}/{video_id}_%03d.m4a",
+        f"{tmp_chunk_folder_path}/{video.id}_%03d.m4a",
     ]
     
     try:
@@ -62,11 +69,18 @@ def chunk_audio(video_id: int, downloaded_video: DownloadedVideo):
     except subprocess.CalledProcessError as exc:
         logger.error("FFmpeg stderr: %s", exc.stderr)
         raise
+    finally:
+        Path(tmp_audio_path).unlink()
+        
+    return await move_audio_chunks_to_s3(
+        video_id=video.id,
+        chunks_folder_path=tmp_chunk_folder_path,
+    )
     
-async def move_audio_chunks_to_s3(video_id: int, downloaded_video: DownloadedVideo) -> list[S3Key]:
-    assert Path(downloaded_video.chunks_path).exists()
+async def move_audio_chunks_to_s3(video_id: int, chunks_folder_path: str) -> list[S3Key]:
+    assert Path(chunks_folder_path).exists()
     
-    files = glob.glob(downloaded_video.chunks_path + "/*.m4a")
+    files = glob.glob(chunks_folder_path + "/*.m4a")
     assert len(files) != 0
     
     files.sort()

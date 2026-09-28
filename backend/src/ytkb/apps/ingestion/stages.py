@@ -3,9 +3,11 @@ import logging
 from pathlib import Path
 from pprint import pprint
 
+from ytkb.apps.ingestion.models import PipelineStage, PipelineStageStatus
+from ytkb.apps.ingestion import tasks, video_pipeline
 from ytkb.apps.videos.models import Channel, Video
 from ytkb.apps.videos import services as video_services
-from ytkb.apps.ingestion import services, youtube, transcriber, embedder
+from ytkb.apps.ingestion import services, video_queue, youtube, transcriber, embedder
 from ytkb.core import storage, meilisearch, qdrant
 from ytkb.core.db import SessionLocal
 
@@ -33,46 +35,43 @@ async def sync_channel_stage(channel: Channel, yt_videos: list[youtube.YoutubeVi
         session.add_all([*videos, *pipeline_items, *queue_items])
         await session.commit()
     
-async def download_stage(video: Video):
-    downloaded_video = await asyncio.to_thread(
-        youtube.download_video, 
-        video_id=video.id,
-        url=video.url,
-    )
+async def download_stage():
+    videos = await video_queue.claim(stage=PipelineStage.DOWNLOAD, n=1)
+    task_results = []
     
-    s3_keys = await asyncio.gather(
-        services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.video_path, type=services.VideoAssetType.VIDEO),
-        services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.audio_path, type=services.VideoAssetType.AUDIO),
-    )
+    await video_pipeline.mark_many(videos=videos, stage_status=PipelineStageStatus.IN_PROGRESS)
+    logger.info(f"{len(videos)} videos marked as in progress: {[v.id for v in videos]}")
     
-    assert len(s3_keys) == 2
-    
-    await video_services.update_s3_keys(
-        video_id=video.id,
-        video_file_s3_key=s3_keys[0],
-        audio_file_s3_key=s3_keys[1],
+    for chunk in chunked(videos, size=5):
+        task_results.append(
+            tasks.download_video_batch.delay([v.id for v in chunk])
+        )
+        logger.info(f"video batch dispatched for {len(chunk)} videos: {[v.id for v in chunk]}")
+        
+    results: list[dict] = await asyncio.gather(
+        *[asyncio.to_thread(task_res.get, timeout=3000) for task_res in task_results],
+        return_exceptions=True
     )
+    logger.info(f"{len(results)} tasks finished")
     
-    # logger.info(f"removing {path}")
-    # Path(path).unlink()
-
-async def chunk_stage(video: Video, downloaded_video: youtube.DownloadedVideo):
-    logger.info(f"chunking video {video.id}")
-    await asyncio.to_thread(
-        services.chunk_audio,
-        video_id=video.id,
-        downloaded_video=downloaded_video,
-    )
+    for result in results:
+        if isinstance(result, BaseException):
+            logger.error(f"task failed: {repr(result)}")            
+            continue
+        
+        try:
+            assert isinstance(result, dict)
+            ingestion_task_result = tasks.IngestionBatchTaskResult(**result)
+        except Exception as exc:
+            logger.error(f"failed to convert task result: {repr(exc)}, result: {result}")
+            continue
+        
+        await mark_batch_result(ingestion_task_result)
     
-    s3_keys = await services.move_audio_chunks_to_s3(
-        video_id=video.id,
-        downloaded_video=downloaded_video,
-    )
-    
-    await video_services.create_video_chunks(
-        video=video,
-        chunk_s3_keys=s3_keys,
-    )
+async def chunk_stage():
+    videos = video_queue.claim(stage=PipelineStage.CHUNK, n=100)
+    for chunk in chunked(videos, size=5):
+        tasks.chunk_video_batch.delay([v.id for v in chunk])
     
 async def transcribe_stage(video: Video):
     assert len(video.chunks) != 0
@@ -134,3 +133,23 @@ async def index_stage(video: Video):
         ))
         
     await asyncio.to_thread(meilisearch.index_video, chunks=meili_chunks)
+    
+def chunked(items: list, size: int):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+        
+async def mark_batch_result(result: tasks.IngestionBatchTaskResult):
+    assert isinstance(result, tasks.IngestionBatchTaskResult), f"expected: tasks.IngestionBatchTaskResult, got: {type(result)}"
+    print(type(result))
+    
+    succeeded_videos = await video_services.fetch_videos_by_ids(
+        [t.video_id for t in result.succeeded_tasks],
+    )
+    logger.info(f"{len(succeeded_videos)} videos marked as done: {[v.id for v in succeeded_videos]}")
+    await video_pipeline.mark_many(succeeded_videos, stage_status=PipelineStageStatus.DONE)
+    
+    failed_videos = await video_services.fetch_videos_by_ids(
+        [t.video_id for t in result.failed_tasks],
+    )
+    logger.info(f"{len(succeeded_videos)} videos marked as failed: {[v.id for v in failed_videos]}")
+    await video_pipeline.mark_many(failed_videos, stage_status=PipelineStageStatus.FAILED)

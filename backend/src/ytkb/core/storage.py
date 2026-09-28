@@ -51,7 +51,7 @@ def put_audio_chunk_file(video_id: int, data: bytes, position: int) -> str:
 def get_audio_file(video_id: int) -> bytes:
     resp = s3.get_object(
         Bucket=settings.s3_bucket,
-        Key=f"videos/{video_id}/{video_id}.mp4",
+        Key=f"videos/{video_id}/{video_id}.m4a",
     )
     return resp["Body"].read()
 

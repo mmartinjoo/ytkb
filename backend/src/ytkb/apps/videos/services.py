@@ -50,16 +50,19 @@ async def update_s3_keys(video_id: int, video_file_s3_key: str, audio_file_s3_ke
 async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
     async with SessionLocal() as session:
         for idx, s3_key in enumerate(chunk_s3_keys):
-            stmt = insert(VideoChunk).values(
-                video_id=video.id,
-                position=idx,
-                audio_file_s3_key=s3_key,
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[VideoChunk.video_id, VideoChunk.position],
-                set_={
-                    "audio_file_s3_key": s3_key,
-                },
+            stmt = (
+                insert(VideoChunk)
+                .values(
+                    video=video,
+                    position=idx,
+                    audio_file_s3_key=s3_key,
+                )
+                .on_conflict_do_update(
+                    index_elements=[VideoChunk.video_id, VideoChunk.position],
+                    set_={
+                        "audio_file_s3_key": s3_key,
+                    },
+                )
             )
             await session.execute(stmt)
         await session.commit()
@@ -111,6 +114,15 @@ async def find_video_with_chunks(video_id: int) -> Video:
 async def find_video(video_id: int) -> Video:
     async with SessionLocal() as session:
         return await session.get_one(Video, video_id)
+    
+async def fetch_videos_by_ids(ids: list[int]) -> list[Video]:
+    async with SessionLocal() as session:
+        stmt = (
+            select(Video)
+            .where(Video.id.in_(ids))
+        )
+        res = await session.execute(stmt)
+        return res.scalars().all()
     
 async def find_channel_with_videos(channel_id: int) -> Channel:
     async with SessionLocal() as session:
