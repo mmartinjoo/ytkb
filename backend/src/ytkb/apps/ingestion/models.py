@@ -24,6 +24,14 @@ class VideoQueueItem(Base):
         default=lambda: datetime.now(),
         nullable=False,
     )
+    claimed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    claimed_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     
     video: Mapped["Video"] = relationship()
     
