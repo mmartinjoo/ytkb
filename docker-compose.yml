@@ -1,4 +1,4 @@
-x-common-variables: &env_vars
+x-env-vars: &env_vars
   DATABASE_URL: ${DATABASE_URL}
   DATABASE_HOST: ${DATABASE_HOST}
   DATABASE_PORT: ${DATABASE_PORT}
@@ -21,22 +21,20 @@ x-common-variables: &env_vars
   MEILISEARCH_URL: ${MEILISEARCH_URL}
   MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY}
 
-x-common-variables: &backend_volumes
-  volumes:
-    - ./backend:/usr/src/app
-    - .env:/usr/src/app/.env
-    - exclude_api:/usr/src/app/.venv
-    - huggingface_cache:/root/.cache/huggingface
-    - fastembed_cache:/tmp/fastembed_cache
+x-backend-volumes: &backend_volumes
+  - ./backend:/usr/src/app
+  - .env:/usr/src/app/.env
+  - exclude_api:/usr/src/app/.venv
+  - huggingface_cache:/root/.cache/huggingface
+  - fastembed_cache:/tmp/fastembed_cache
 
-x-common-variables: &backend_dependencies
-  depends_on:
-    - postgres
-    - migrate  
-    - redis
-    - minio
-    - qdrant   
-    - meilisearch
+x-backend-dependencies: &backend_dependencies
+  - postgres
+  - migrate  
+  - redis
+  - minio
+  - qdrant   
+  - meilisearch
 
 name: ytkb
 
