@@ -6,4 +6,8 @@ app.conf.beat_schedule = {
         "task": "ytkb.ingestion.tasks.sync_channels",
         "schedule": crontab(hour=0, minute=0),
     },
+    "fanout_downloads": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_downloads",
+        "schedule": 30 * 60,
+    },
 }

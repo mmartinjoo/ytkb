@@ -21,6 +21,23 @@ x-common-variables: &env_vars
   MEILISEARCH_URL: ${MEILISEARCH_URL}
   MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY}
 
+x-common-variables: &backend_volumes
+  volumes:
+    - ./backend:/usr/src/app
+    - .env:/usr/src/app/.env
+    - exclude_api:/usr/src/app/.venv
+    - huggingface_cache:/root/.cache/huggingface
+    - fastembed_cache:/tmp/fastembed_cache
+
+x-common-variables: &backend_dependencies
+  depends_on:
+    - postgres
+    - migrate  
+    - redis
+    - minio
+    - qdrant   
+    - meilisearch
+
 name: ytkb
 
 services:
@@ -57,19 +74,8 @@ services:
     command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && ./wait-for-it.sh redis:6379 && ./wait-for-it.sh qdrant:6333 && ./wait-for-it.sh minio:9000 && ./wait-for-it.sh meilisearch:7700 && make api"
     restart: unless-stopped
     tty: true
-    volumes:
-      - ./backend:/usr/src/app
-      - .env:/usr/src/app/.env
-      - exclude_api:/usr/src/app/.venv
-      - huggingface_cache:/root/.cache/huggingface
-      - fastembed_cache:/tmp/fastembed_cache
-    depends_on:
-      - postgres
-      - migrate  
-      - redis
-      - minio
-      - qdrant   
-      - meilisearch 
+    volumes: *backend_volumes
+    depends_on: *backend_dependencies
     environment: *env_vars
 
   worker:
@@ -79,21 +85,10 @@ services:
     command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && ./wait-for-it.sh redis:6379 && ./wait-for-it.sh qdrant:6333 && ./wait-for-it.sh minio:9000 && make worker"
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
     restart: unless-stopped
-    volumes:
-      - ./backend:/usr/src/app
-      - .env:/usr/src/app/.env
-      - exclude_api:/usr/src/app/.venv
-      - huggingface_cache:/root/.cache/huggingface
-      - fastembed_cache:/tmp/fastembed_cache
-    depends_on:
-      - postgres
-      - migrate  
-      - redis
-      - minio
-      - qdrant   
-      - meilisearch 
+    volumes: *backend_volumes
+    depends_on: *backend_dependencies
     environment: *env_vars
 
   scheduler:

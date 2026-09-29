@@ -1,12 +1,16 @@
 import asyncio
 import logging
 
+from celery import group
+
 from ytkb.apps.videos.models import Video
 from ytkb.core import celery
 from ytkb.apps.videos import services as video_services
 from ytkb.apps.ingestion import youtube
 from ytkb.apps.ingestion.pipeline import repository as pipeline_repository
 from ytkb.core.db import SessionLocal
+from ytkb.apps.ingestion.pipeline import executor
+from ytkb.apps.ingestion.pipeline.steps.step import StepEnum
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +25,14 @@ def sync_channels():
 @celery.app.task
 def sync_channel(channel_id: int):
     asyncio.run(async_channel(channel_id=channel_id))
+    
+@celery.app.task
+def fanout_downloads(n: int = 4):
+    group(download_videos.s() for _ in range(n)).apply_async()
+
+@celery.app.task
+def download_videos():
+    asyncio.run(executor.execute_batch(StepEnum.DOWNLOAD))
     
 async def async_channels():
     channels = await video_services.fetch_channels()

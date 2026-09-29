@@ -13,8 +13,8 @@ class IndexStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(minutes=45)
     lease: ClassVar[timedelta] = timedelta(minutes=30)
-    batch_size: ClassVar[int] = 25
-    concurrency: ClassVar[int] = 5
+    batch_size: ClassVar[int] = 10
+    concurrency: ClassVar[int] = 2
     
     async def run(self, video: Video):
         assert len(video.chunks) != 0

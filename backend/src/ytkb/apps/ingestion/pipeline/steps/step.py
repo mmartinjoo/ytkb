@@ -15,8 +15,8 @@ class Step(ABC):
     max_attempts: ClassVar[int]
     retry_backoff: ClassVar[timedelta]
     lease: ClassVar[timedelta]
-    batch_size: ClassVar[int] = 25      # how many videos a worker gets
-    concurrency: ClassVar[int] = 4      # how many videos a worker processes in parallel
+    batch_size: ClassVar[int] = 1      # how many videos a worker gets
+    concurrency: ClassVar[int] = 1      # how many videos a worker processes in parallel
     
     @abstractmethod
     async def run(self, video: Video): ...

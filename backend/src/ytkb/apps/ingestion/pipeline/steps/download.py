@@ -18,7 +18,7 @@ class DownloadStep(Step):
     retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
     lease: ClassVar[timedelta] = timedelta(hours=1)
     batch_size: ClassVar[int] = 2
-    concurrency: ClassVar[int] = 2
+    concurrency: ClassVar[int] = 1
     
     async def run(self, video: Video):
         logger.info(f"downloading video {video.id}")

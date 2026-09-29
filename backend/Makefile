@@ -16,3 +16,19 @@ scheduler:
 
 api:
 	uv run api
+
+ingestion-download-step:
+	uv run ingestion-download-step
+	
+ingestion-chunk-step:
+	uv run ingestion-chunk-step
+	
+ingestion-transcribe-step:
+	uv run ingestion-transcribe-step
+	
+ingestion-embed-step:
+	uv run ingestion-embed-step
+	
+ingestion-index-step:
+	uv run ingestion-index-step
+	

@@ -8,3 +8,12 @@ def download_batch():
 
 def chunk_batch():
     asyncio.run(executor.execute_batch(StepEnum.CHUNK))
+    
+def transribe_batch():
+    asyncio.run(executor.execute_batch(StepEnum.TRANSCRIBE))
+    
+def embed_batch():
+    asyncio.run(executor.execute_batch(StepEnum.EMBED))
+    
+def index_batch():
+    asyncio.run(executor.execute_batch(StepEnum.INDEX))

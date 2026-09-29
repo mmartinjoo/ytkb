@@ -18,8 +18,8 @@ class ChunkStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(minutes=30)
     lease: ClassVar[timedelta] = timedelta(minutes=15)
-    batch_size: ClassVar[int] = 100
-    concurrency: ClassVar[int] = 10
+    batch_size: ClassVar[int] = 4
+    concurrency: ClassVar[int] = 2
     
     async def run(self, video: Video):
         logger.info(f"chunking video {video.id}")
