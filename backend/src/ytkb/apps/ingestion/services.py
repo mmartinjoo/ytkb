@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 import logging
 import subprocess
 import glob
@@ -7,10 +6,7 @@ from enum import Enum, auto
 from typing import TypeAlias
 from pathlib import Path
 from ytkb.apps.videos.models import Video
-from ytkb.apps.ingestion.models import VideoPipelineItem, VideoQueueItem, PipelineStageStatus, PipelineStage
 from ytkb.core import storage
-from ytkb.apps.ingestion.youtube import DownloadedVideo
-from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -107,39 +103,3 @@ async def move_audio_chunk_to_s3(semaphore: asyncio.Semaphore, filename: str, vi
             
     async with semaphore:
         return await asyncio.to_thread(copy_file)
-
-def new_pipeline_item(video: Video) -> VideoPipelineItem:
-    return VideoPipelineItem(
-        video=video,
-        stage=PipelineStage.DOWNLOAD,
-        stage_status=PipelineStageStatus.PENDING,
-    )
-    
-def new_queue_item(video: Video) -> VideoQueueItem:
-    return VideoQueueItem(
-        video=video,
-        attempts=0,
-        queued_at=datetime.now(),
-    )
-
-def initialize_pipeline(session, videos: list[Video]):
-    items = []
-    for video in videos:
-        items.append(VideoPipelineItem(
-            video_id=video.id,
-            stage=PipelineStage.DOWNLOAD,
-            stage_status=PipelineStageStatus.PENDING,
-        ))
-        
-    session.add_all(items)
-        
-def initialize_queue(session, videos: list[Video]):
-    items = []
-    for video in videos:
-        items.append(VideoQueueItem(
-            video_id=video.id,
-            attempts=0,
-            queued_at=datetime.now(),
-        ))
-        
-    session.add_all(items)

@@ -5,7 +5,6 @@ from fastapi import APIRouter, FastAPI
 from ytkb.core.config import settings
 from ytkb.core import logging
 from ytkb.apps.videos import routes as video_router
-from ytkb.apps.ingestion import routes as ingestion_router
 
 logging.setup_logging()
 
@@ -16,7 +15,6 @@ app = FastAPI(
 
 api = APIRouter(prefix="/api")
 api.include_router(video_router.router)
-api.include_router(ingestion_router.router)
 
 app.include_router(api)
 
