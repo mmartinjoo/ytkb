@@ -17,7 +17,6 @@ class DownloadStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
     lease: ClassVar[timedelta] = timedelta(hours=1)
-    workers: ClassVar[int] = 4
     batch_size: ClassVar[int] = 2
     concurrency: ClassVar[int] = 2
     

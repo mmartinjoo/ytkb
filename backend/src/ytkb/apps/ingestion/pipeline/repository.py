@@ -3,6 +3,7 @@ from typing import TypeAlias
 
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import aliased, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 from ytkb.apps.ingestion.models import PipelineRun, PipelineStatus, StepRun, StepStatus
 from ytkb.apps.ingestion.pipeline.pipeline import Pipeline
 from ytkb.apps.ingestion.pipeline.steps.step import StepEnum, Step
@@ -17,28 +18,23 @@ class PipelineRepository():
     def __init__(self, pipeline: Pipeline):
         self.pipeline = pipeline
     
-    async def create_pipeline_run(self, video: Video, pipeline: Pipeline) -> PipelineRun:
-        async with SessionLocal() as session:
-            pipeline_run = PipelineRun(
-                video=video,
-                status=PipelineStatus.PENDING,
+    async def enqueue_video(self, session: AsyncSession, video: Video):
+        pipeline_run = PipelineRun(
+            video=video,
+            status=PipelineStatus.PENDING,
+        )
+        
+        session.add(pipeline_run)
+        await session.flush()
+        
+        for name in self.pipeline.steps.keys():
+            step_run = StepRun(
+                pipeline_run=pipeline_run,
+                step_name=name,
+                status=StepStatus.PENDING,                    
             )
-            
-            session.add(pipeline_run)
-            await session.flush()
-            
-            for name in pipeline.steps.keys():
-                step_run = StepRun(
-                    pipeline_run=pipeline_run,
-                    step_name=name,
-                    status=StepStatus.PENDING,                    
-                )
-                session.add(step_run)
-            
-            await session.commit()
-            
-        return pipeline_run
-    
+            session.add(step_run)
+        
     async def claim(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
         step = self.pipeline.get_step(step_name)
         dep_names = [dep.name for dep in step.depends_on]

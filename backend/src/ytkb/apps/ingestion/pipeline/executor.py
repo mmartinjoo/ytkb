@@ -1,10 +1,13 @@
 import asyncio
+import logging
 
 from ytkb.apps.ingestion.models import PipelineRun, StepRun
 from ytkb.apps.ingestion.pipeline.pipeline import Pipeline
 from ytkb.apps.ingestion.pipeline.repository import PipelineRepository
 from ytkb.apps.ingestion.pipeline.steps.step import StepEnum
 from ytkb.apps.videos.models import Video
+
+logger = logging.getLogger(__name__)
 
 class PipelineExecutor():
     pipeline: Pipeline
@@ -15,11 +18,9 @@ class PipelineExecutor():
         self.pipeline = pipeline
         self.repository = repository
         
-    async def create_pipeline_run(self, video: Video):
-        self.pipeline_run = await self.repository.create_pipeline_run(video, self.pipeline)
-        
     async def execute(self, step_run_id: int):
         try:
+            logger.info(f"executing step run {step_run_id}")
             await self.repository.mark_running(step_run_id=step_run_id)
             
             step_run: StepRun = await self.repository.find_step_run_with_video(step_run_id)
@@ -28,7 +29,9 @@ class PipelineExecutor():
             await step.run(video=step_run.pipeline_run.video)
             await step.verify(video=step_run.pipeline_run.video)
             await self.repository.mark_done(step_run_id=step_run_id)
+            logger.info(f"step run {step_run_id} edecuted")
         except Exception as exc:
+            logger.error(f"step run {step_run_id} failed: {repr(exc)}")
             await self.repository.mark_failed(
                 step_run_id=step_run_id,
                 step=step,

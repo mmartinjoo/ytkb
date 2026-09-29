@@ -15,7 +15,6 @@ class Step(ABC):
     max_attempts: ClassVar[int]
     retry_backoff: ClassVar[timedelta]
     lease: ClassVar[timedelta]
-    workers: ClassVar[int] = 4          # how many workers should work on a step at the same time
     batch_size: ClassVar[int] = 25      # how many videos a worker gets
     concurrency: ClassVar[int] = 4      # how many videos a worker processes in parallel
     
@@ -28,3 +27,6 @@ class Step(ABC):
 class StepEnum(Enum):
     DOWNLOAD = "DOWNLOAD"
     CHUNK = "CHUNK"
+    TRANSCRIBE = "TRANSCRIBE"
+    EMBED = "EMBED"
+    INDEX = "INDEX"

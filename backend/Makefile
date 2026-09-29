@@ -11,5 +11,8 @@ runmigration:
 worker:
 	uv run celery -A ytkb.worker worker --loglevel=info
 
+scheduler:
+	uv run celery -A ytkb.scheduler beat --loglevel=info
+
 api:
 	uv run api
