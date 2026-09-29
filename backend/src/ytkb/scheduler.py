@@ -6,8 +6,24 @@ app.conf.beat_schedule = {
         "task": "ytkb.ingestion.tasks.sync_channels",
         "schedule": crontab(hour=0, minute=0),
     },
-    "fanout_downloads": {
-        "task": "ytkb.apps.ingestion.tasks.fanout_downloads",
+    "fanout_download_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_download_tasks",
         "schedule": 30 * 60,
+    },
+    "fanout_chunk_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_chunk_tasks",
+        "schedule": 5 * 60,
+    },
+    "fanout_transcribe_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_transcribe_tasks",
+        "schedule": 60 * 60,
+    },
+    "fanout_embed_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_embed_tasks",
+        "schedule": 45 * 60,
+    },
+    "fanout_index_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_index_tasks",
+        "schedule": 10 * 60,
     },
 }

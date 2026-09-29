@@ -28,11 +28,6 @@ dependencies = [
 
 [project.scripts] 
 api = "ytkb.api:main"
-ingestion-download-step = "ytkb.apps.ingestion.main:download_batch"
-ingestion-chunk-step = "ytkb.apps.ingestion.main:chunk_batch"
-ingestion-transcribe-step = "ytkb.apps.ingestion.main:transcribe_batch"
-ingestion-embed-step = "ytkb.apps.ingestion.main:embed_batch"
-ingestion-index-step = "ytkb.apps.ingestion.main:index_batch"
 
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13.0"]
