@@ -2,6 +2,7 @@ import asyncio
 from datetime import timedelta
 from typing import ClassVar
 
+from ytkb.apps.videos.models import Video
 from ytkb.core import qdrant
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.apps.ingestion import embedder
@@ -16,7 +17,7 @@ class EmbedStep(Step):
     batch_size: ClassVar[int] = 1
     concurrency: ClassVar[int] = 1
     
-    async def run(self, video):
+    async def run(self, video: Video):
         assert len(video.chunks) != 0
             
         texts = []
@@ -33,3 +34,6 @@ class EmbedStep(Step):
             video_id=video.id,
             video_chunk_ids=chunk_ids,
         )
+        
+    async def verify(self, video: Video):
+        pass

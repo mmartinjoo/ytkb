@@ -2,6 +2,7 @@ import asyncio
 from datetime import timedelta
 from typing import ClassVar
 
+from ytkb.apps.videos.models import Video
 from ytkb.core import meilisearch
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 
@@ -15,7 +16,7 @@ class IndexStep(Step):
     batch_size: ClassVar[int] = 25
     concurrency: ClassVar[int] = 5
     
-    async def run(self, video):
+    async def run(self, video: Video):
         assert len(video.chunks) != 0
             
         meili_chunks: list[meilisearch.MeiliSearchChunk] = []
@@ -30,3 +31,6 @@ class IndexStep(Step):
             ))
             
         await asyncio.to_thread(meilisearch.index_video, chunks=meili_chunks)
+        
+    async def verify(self, video: Video):
+        pass

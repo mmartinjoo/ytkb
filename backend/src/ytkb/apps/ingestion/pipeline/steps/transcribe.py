@@ -12,8 +12,8 @@ from ytkb.core import storage
 
 logger = logging.getLogger(__name__)
 
-class TranscribreStep(Step):
-    name: ClassVar[str] = StepEnum.TRANSCRIBE.value,
+class TranscribeStep(Step):
+    name: ClassVar[str] = StepEnum.TRANSCRIBE.value
     depends_on: ClassVar[tuple[str]] = (StepEnum.DOWNLOAD.value, StepEnum.CHUNK.value,)
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
@@ -48,3 +48,6 @@ class TranscribreStep(Step):
             Path(tmp_file_path).unlink()
             
         await video_services.update_video_content(video.id)
+        
+    async def verify(self, video: Video):
+        pass

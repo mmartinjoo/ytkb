@@ -28,7 +28,7 @@ async def async_channels():
         sync_channel.delay(c.id)
     
 async def adiscover_channel(channel_id: int):
-    logger.ingo(f"discovering channel {channel_id}")
+    logger.info(f"discovering channel {channel_id}")
     
     channel = await video_services.find_channel(id=channel_id)
     yt_videos = await asyncio.to_thread(youtube.get_all_videos, handle=channel.handle)
@@ -36,18 +36,18 @@ async def adiscover_channel(channel_id: int):
     logger.info(f"found {len(yt_videos)} YouTube videos")
     
     videos = []
-    for v in yt_videos:
-        video = Video(
-            title=v.title,
-            url=v.url,
-            channel_id=channel.id,
-        )
-        videos.append(video)
-        await pipeline_repository.enqueue_video(session=session, video=video)
-        
     async with SessionLocal() as session:
-        session.add_all(videos)
-        await session.commit()
+        for v in yt_videos:
+            video = Video(
+                title=v.title,
+                url=v.url,
+                channel_id=channel.id,
+                youtube_id=v.id,
+            )
+            videos.append(video)
+            await pipeline_repository.enqueue_video(session=session, video=video)
+            session.add_all(videos)
+            await session.commit()
         
     logger.info(f"created and enqueued {len(yt_videos)} videos")
         
