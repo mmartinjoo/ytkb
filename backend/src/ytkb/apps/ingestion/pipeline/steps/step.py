@@ -3,9 +3,6 @@ from datetime import timedelta
 from enum import Enum
 from typing import ClassVar
 
-from pydantic import BaseModel
-from ytkb.apps.ingestion.pipeline.steps.chunk import ChunkStep
-from ytkb.apps.ingestion.pipeline.steps.download import DownloadStep
 from ytkb.apps.videos.models import Video
         
     
@@ -18,6 +15,9 @@ class Step(ABC):
     max_attempts: ClassVar[int]
     retry_backoff: ClassVar[timedelta]
     lease: ClassVar[timedelta]
+    workers: ClassVar[int] = 4          # how many workers should work on a step at the same time
+    batch_size: ClassVar[int] = 25      # how many videos a worker gets
+    concurrency: ClassVar[int] = 4      # how many videos a worker processes in parallel
     
     @abstractmethod
     async def run(self, video: Video): ...
@@ -28,11 +28,3 @@ class Step(ABC):
 class StepEnum(Enum):
     DOWNLOAD = "DOWNLOAD"
     CHUNK = "CHUNK"
-    
-    @classmethod
-    def create_step(cls, value: "StepEnum") -> Step:
-        if value == cls.DOWNLOAD:
-            return DownloadStep()
-        if value == cls.CHUNK:
-            return ChunkStep()
-        raise ValueError(f"invalid step: {value}")

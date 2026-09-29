@@ -15,8 +15,11 @@ class DownloadStep(Step):
     name: ClassVar[str] = StepEnum.DOWNLOAD.value
     depends_on: ClassVar[tuple[str]] = ()
     max_attempts: ClassVar[int] = 3
-    retry_backoff: ClassVar[timedelta] = timedelta(hours=1)
+    retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
     lease: ClassVar[timedelta] = timedelta(hours=1)
+    workers: ClassVar[int] = 4
+    batch_size: ClassVar[int] = 2
+    concurrency: ClassVar[int] = 2
     
     async def run(self, video: Video):
         logger.info(f"downloading video {video.id}")

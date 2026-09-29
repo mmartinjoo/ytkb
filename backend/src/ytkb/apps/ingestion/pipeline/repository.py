@@ -1,13 +1,15 @@
 from datetime import datetime
+from typing import TypeAlias
 
 from sqlalchemy import and_, or_, select, update
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 from ytkb.apps.ingestion.models import PipelineRun, PipelineStatus, StepRun, StepStatus
 from ytkb.apps.ingestion.pipeline.pipeline import Pipeline
-from ytkb.apps.ingestion.pipeline.steps.step import StepEnum
+from ytkb.apps.ingestion.pipeline.steps.step import StepEnum, Step
 from ytkb.apps.videos.models import Video
 from ytkb.core.db import SessionLocal
 
+StepRunId: TypeAlias = int
 
 class PipelineRepository():
     pipeline: Pipeline
@@ -37,7 +39,7 @@ class PipelineRepository():
             
         return pipeline_run
     
-    async def claim(self, step_name: StepEnum, n: int = 100) -> list[Video]:
+    async def claim(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
         step = self.pipeline.get_step(step_name)
         dep_names = [dep.name for dep in step.depends_on]
         
@@ -94,3 +96,53 @@ class PipelineRepository():
             await session.commit()
             
         return ids
+    
+    async def mark_failed(step_run_id: int, step: Step, exc: Exception):
+        async with SessionLocal() as session:
+            stmt = (
+                update(StepRun)
+                .where(StepRun.id == step_run_id)
+                .values(
+                    status=StepStatus.FAILED,
+                    error=repr(exc),
+                    next_attempt_at=datetime.now() + step.retry_backoff,
+                    finished_at=datetime.now(),
+                )
+            )
+            await session.execute(stmt)
+            await session.commit()
+            
+    async def mark_running(step_run_id: int):
+        async with SessionLocal() as session:
+            stmt = (
+                update(StepRun)
+                .where(StepRun.id == step_run_id)
+                .values(
+                    status=StepStatus.RUNNING,
+                    started_at=datetime.now(),
+                )
+            )
+            await session.execute(stmt)
+            await session.commit()
+            
+    async def mark_done(step_run_id: int):
+            async with SessionLocal() as session:
+                stmt = (
+                    update(StepRun)
+                    .where(StepRun.id == step_run_id)
+                    .values(
+                        status=StepStatus.DONE,
+                        finished_at=datetime.now(),
+                    )
+                )
+                await session.execute(stmt)
+                await session.commit()
+    
+    async def find_step_run_with_video(step_run_id: int) -> StepRun:
+        async with SessionLocal() as session:
+            return await session.get_one(
+                StepRun, 
+                step_run_id, 
+                selectinload(StepRun.pipeline_run).selectinload(PipelineRun.video),
+            )
+            
