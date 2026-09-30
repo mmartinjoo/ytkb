@@ -35,8 +35,8 @@ def fanout_ingestion_tasks(step_name: str):
     run_async(afanout_ingestion_tasks(step_name=StepEnum(step_name)))
     
 async def afanout_ingestion_tasks(step_name: StepEnum):
-    step_run_ids = await pipeline_repository.next(step_name)
     step = executor.pipeline.get_step(step_name.value)
+    step_run_ids = await pipeline_repository.fetch_claimable(step_name, n=step.claim_limit)    
     for id in step_run_ids:        
         execute_step.apply_async(args=[id], queue=step.queue)
             

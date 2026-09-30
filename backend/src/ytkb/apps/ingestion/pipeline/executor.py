@@ -33,7 +33,6 @@ class PipelineExecutor():
             
             video = step_run.pipeline_run.video
         
-            logger.info("----RUN----")
             await step.run(video=video)
             
             async with SessionLocal() as session:                

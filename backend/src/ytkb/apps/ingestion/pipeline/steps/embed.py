@@ -14,10 +14,9 @@ class EmbedStep(Step):
     name: ClassVar[str] = StepEnum.EMBED.value
     depends_on: ClassVar[tuple[str]] = (StepEnum.DOWNLOAD.value, StepEnum.CHUNK.value, StepEnum.TRANSCRIBE.value,)
     max_attempts: ClassVar[int] = 3
-    retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
-    lease: ClassVar[timedelta] = timedelta(hours=1)
-    batch_size: ClassVar[int] = 1
-    concurrency: ClassVar[int] = 1
+    retry_backoff: ClassVar[timedelta] = timedelta(hours=3)
+    lease: ClassVar[timedelta] = timedelta(hours=2)
+    claim_limit: ClassVar[int] = 5
     queue: ClassVar[str] = "cpu"
     
     async def run(self, video: Video):

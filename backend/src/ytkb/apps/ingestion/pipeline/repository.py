@@ -36,7 +36,7 @@ class PipelineRepository():
             )
             session.add(step_run)
         
-    async def next(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
+    async def fetch_claimable(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
         step = self.pipeline.get_step(step_name.value)
         dep_names = [dep for dep in step.depends_on]
         

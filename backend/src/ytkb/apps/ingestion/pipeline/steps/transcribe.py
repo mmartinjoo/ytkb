@@ -18,10 +18,9 @@ class TranscribeStep(Step):
     name: ClassVar[str] = StepEnum.TRANSCRIBE.value
     depends_on: ClassVar[tuple[str]] = (StepEnum.DOWNLOAD.value, StepEnum.CHUNK.value,)
     max_attempts: ClassVar[int] = 3
-    retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
-    lease: ClassVar[timedelta] = timedelta(hours=1)
-    batch_size: ClassVar[int] = 1
-    concurrency: ClassVar[int] = 1
+    retry_backoff: ClassVar[timedelta] = timedelta(hours=3)
+    lease: ClassVar[timedelta] = timedelta(hours=2)
+    claim_limit: ClassVar[int] = 1
     queue: ClassVar[str] = "cpu"
     
     async def run(self, video: Video):

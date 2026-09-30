@@ -15,8 +15,7 @@ class Step(ABC):
     max_attempts: ClassVar[int]
     retry_backoff: ClassVar[timedelta]
     lease: ClassVar[timedelta]
-    batch_size: ClassVar[int] = 1      # how many videos a worker gets
-    concurrency: ClassVar[int] = 1      # how many videos a worker processes in parallel
+    claim_limit: ClassVar[int] = 25
     queue: ClassVar[str] = "io"
     
     @abstractmethod

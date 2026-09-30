@@ -38,7 +38,7 @@ async def chunk_audio(video: Video) -> list[S3Key]:
     Path(tmp_chunk_folder_path).mkdir(parents=True, exist_ok=True)
     
     with open(tmp_audio_path, "wb") as f:
-        asyncio.to_thread(f.write, data)
+        await asyncio.to_thread(f.write, data)
     
     command = [
         "ffmpeg",
@@ -52,7 +52,7 @@ async def chunk_audio(video: Video) -> list[S3Key]:
     
     try:
         process = await asyncio.create_subprocess_exec(
-            command,
+            *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
