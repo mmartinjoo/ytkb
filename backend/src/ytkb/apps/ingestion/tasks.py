@@ -4,7 +4,7 @@ import logging
 from ytkb.apps.videos.models import Video
 from ytkb.core import celery
 from ytkb.apps.videos import services as video_services
-from ytkb.apps.ingestion import youtube
+from ytkb.core import youtube
 from ytkb.apps.ingestion.pipeline import repository as pipeline_repository
 from ytkb.core.db import SessionLocal
 from ytkb.apps.ingestion.pipeline import executor
