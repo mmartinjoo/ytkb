@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TypeAlias
 import traceback
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, or_, select, update, func
 from sqlalchemy.orm import aliased, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from ytkb.apps.ingestion.models import PipelineRun, PipelineStatus, StepRun, StepStatus
@@ -106,7 +106,8 @@ class PipelineRepository():
             await session.commit()
     
     async def mark_failed(self, step_run_id: int, step: Step, exc: Exception):
-        async with SessionLocal() as session:            
+        async with SessionLocal() as session:    
+            step_run = await session.get_one(StepRun, step_run_id)        
             stmt = (
                 update(StepRun)
                 .where(StepRun.id == step_run_id)
@@ -118,6 +119,7 @@ class PipelineRepository():
                 )
             )
             await session.execute(stmt)
+            await self.mark_pipeline_failed(session, step_run.pipeline_run_id)
             await session.commit()
             
     async def mark_running(self, step_run_id: int, step: Step) -> bool:
@@ -150,21 +152,29 @@ class PipelineRepository():
                 .returning(StepRun.id)
             )
             claimed_id = (await session.execute(stmt)).scalar_one_or_none()
+            
+            if claimed_id is not None:
+                step_run = await session.get_one(StepRun, step_run_id)
+                await self.mark_pipeline_running(session, step_run.pipeline_run_id)
+            
             await session.commit()
             return claimed_id is not None
             
     async def mark_done(self, step_run_id: int):
-            async with SessionLocal() as session:
-                stmt = (
-                    update(StepRun)
-                    .where(StepRun.id == step_run_id)
-                    .values(
-                        status=StepStatus.DONE.value,
-                        finished_at=datetime.now(),
-                    )
+        async with SessionLocal() as session:
+            step_run = await session.get_one(StepRun, step_run_id)
+            
+            stmt = (
+                update(StepRun)
+                .where(StepRun.id == step_run_id)
+                .values(
+                    status=StepStatus.DONE.value,
+                    finished_at=datetime.now(),
                 )
-                await session.execute(stmt)
-                await session.commit()
+            )
+            await session.execute(stmt)
+            await self.mark_pipeline_done(session, pipeline_run_id=step_run.pipeline_run_id)
+            await session.commit()
     
     async def find_step_run_with_video(self, step_run_id: int) -> StepRun:
         async with SessionLocal() as session:
@@ -178,4 +188,41 @@ class PipelineRepository():
         text = "".join(traceback.format_exception(exc))
         text = text.replace("\x00", "")                                # Postgres rejects NUL
         return text.encode("utf-8", errors="replace").decode("utf-8")  # drops lone surrogates
+    
+    async def mark_pipeline_running(self, session: AsyncSession, pipeline_run_id: int):
+        stmt = (
+            update(PipelineRun)
+            .where(PipelineRun.id == pipeline_run_id)
+            .values(status=PipelineStatus.RUNNING)
+        )
+        await session.execute(stmt)
+        
+    async def mark_pipeline_failed(self, session: AsyncSession, pipeline_run_id: int):
+        stmt = (
+            update(PipelineRun)
+            .where(PipelineRun.id == pipeline_run_id)
+            .values(status=PipelineStatus.FAILED)
+        )
+        await session.execute(stmt)
+        
+    async def mark_pipeline_done(self, session: AsyncSession, pipeline_run_id: int):
+        stmt = (
+            select(func.count())
+            .where(
+                StepRun.pipeline_run_id == pipeline_run_id,
+                StepRun.status != StepStatus.DONE
+            )
+        )
+        not_done_count = await session.scalar(stmt)
+        
+        if not_done_count != 0:
+            return
+        
+        stmt = (
+            update(PipelineRun)
+            .where(PipelineRun.id == pipeline_run_id)
+            .values(status=PipelineStatus.DONE)
+        )
+        await session.execute(stmt)
+        
             
