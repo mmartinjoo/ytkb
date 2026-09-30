@@ -16,7 +16,7 @@ class YoutubeVideo(BaseModel):
     url: str
     published_at: datetime
 
-def get_all_videos(handle: str, max_pages: int = 2) -> list[YoutubeVideo]:
+def get_all_videos(handle: str, max_pages: int = 15) -> list[YoutubeVideo]:
     youtube = _get_youtube()
     playlist_id = _get_uploads_playlist_id(
         youtube=youtube,
@@ -27,7 +27,7 @@ def get_all_videos(handle: str, max_pages: int = 2) -> list[YoutubeVideo]:
     page_token = None
     n = 0
     
-    while True and n <= max_pages:
+    while n < max_pages:
         response = youtube.playlistItems().list(
             part="snippet,contentDetails",
             playlistId=playlist_id,
@@ -84,15 +84,12 @@ def get_latest_videos(handle: str) -> list[YoutubeVideo]:
         
     return videos
 
-def download_video(video_id: int, url: str) -> str:
+def download_video(url: str, dest_dir: str) -> str:
     logger.info(f"downloading {url}")
-    
-    base_path = f"/tmp/{video_id}"
-    Path(base_path).mkdir(exist_ok=True, parents=True)
     
     options = {
         "format": "bestaudio[ext=m4a]",
-        "outtmpl": f"{base_path}/{video_id}" + ".%(ext)s",
+        "outtmpl": f"{dest_dir}" + ".%(ext)s",
     }
     
     with yt_dlp.YoutubeDL(options) as ydl:

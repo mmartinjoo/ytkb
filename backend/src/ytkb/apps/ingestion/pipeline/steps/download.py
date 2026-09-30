@@ -4,6 +4,7 @@ from typing import ClassVar
 import logging
 import shutil
 
+from anyio import Path
 from ytkb.core import storage
 from ytkb.apps.ingestion import youtube, services as ingestion_services
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum, VerifyError
@@ -24,10 +25,12 @@ class DownloadStep(Step):
     async def run(self, video: Video):
         try:
             logger.info(f"downloading video {video.id}") 
+            dest_dir = f"/tmp/{video.id}"
+            Path(dest_dir).mkdir(exist_ok=True)
             audio_path = await asyncio.to_thread(
                 youtube.download_video, 
-                video_id=video.id,
                 url=video.url,
+                dest_dir=dest_dir,
             )
             
             s3_key = await ingestion_services.move_audio_to_s3(video_id=video.id, path=audio_path)   
@@ -38,7 +41,7 @@ class DownloadStep(Step):
                 audio_file_s3_key=s3_key,
             )
         finally:
-            await asyncio.to_thread(shutil.rmtree, f"/tmp/{video.id}", ignore_errors=True)
+            await asyncio.to_thread(shutil.rmtree, dest_dir, ignore_errors=True)
         
     async def verify(self, video: Video):
         audio_file_exists = await asyncio.to_thread(storage.exists, key=video.audio_file_s3_key)
