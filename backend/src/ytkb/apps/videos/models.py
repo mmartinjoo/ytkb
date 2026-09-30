@@ -32,7 +32,6 @@ class Video(Base):
     content_without_timestamps: Mapped[Optional[str]]
     channel_id: Mapped[int] = mapped_column(ForeignKey("videos__channels.id"))
     youtube_id: Mapped[str] = mapped_column(String(100), unique=True)
-    video_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
     audio_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
 
     channel: Mapped["Channel"] = relationship(back_populates="videos")

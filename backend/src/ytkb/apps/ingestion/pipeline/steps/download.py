@@ -18,39 +18,29 @@ class DownloadStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
     lease: ClassVar[timedelta] = timedelta(hours=1)
-    claim_limit: ClassVar[int] = 2
-    queue: ClassVar[str] = "download"
+    claim_limit: ClassVar[int] = 3
+    queue: ClassVar[str] = "io"
     
     async def run(self, video: Video):
         try:
             logger.info(f"downloading video {video.id}") 
-            downloaded_video = await asyncio.to_thread(
+            _, audio_path = await asyncio.to_thread(
                 youtube.download_video, 
                 video_id=video.id,
                 url=video.url,
             )
             
-            s3_keys = await asyncio.gather(
-                ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.video_path, type=ingestion_services.VideoAssetType.VIDEO),
-                ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.audio_path, type=ingestion_services.VideoAssetType.AUDIO),
-            )            
+            s3_key = await ingestion_services.move_audio_to_s3(video_id=video.id, path=audio_path)   
+            assert s3_key is not None and len(s3_key) != 0
             
-            assert len(s3_keys) == 2
-            
-            await video_services.update_s3_keys(
+            await video_services.update_s3_key(
                 video_id=video.id,
-                video_file_s3_key=s3_keys[0],
-                audio_file_s3_key=s3_keys[1],
+                audio_file_s3_key=s3_key,
             )
         finally:
             await asyncio.to_thread(shutil.rmtree, f"/tmp/{video.id}", ignore_errors=True)
         
     async def verify(self, video: Video):
-        audio_file_exists = await asyncio.to_thread(storage.exists, key=video.video_file_s3_key)
-        audio_file_empty = await asyncio.to_thread(storage.empty, key=video.video_file_s3_key)
-        if not audio_file_exists or audio_file_empty:
-            raise VerifyError(f"video file at {video.audio_file_s3_key} is missing or empty")
-            
         audio_file_exists = await asyncio.to_thread(storage.exists, key=video.audio_file_s3_key)
         audio_file_empty = await asyncio.to_thread(storage.empty, key=video.audio_file_s3_key)
         if not audio_file_exists or audio_file_empty:

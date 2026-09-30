@@ -9,10 +9,7 @@ runmigration:
 	uv run alembic upgrade head
 
 worker-io:
-	uv run celery -A ytkb.worker worker -Q celery,io -n io@%h --concurrency=4 --loglevel=info
-
-worker-download:
-	uv run celery -A ytkb.worker worker -Q download -n download@%h --concurrency=2 --loglevel=info
+	uv run celery -A ytkb.worker worker -Q celery,io -n io@%h --concurrency=8 --loglevel=info
 
 worker-cpu:
 	uv run celery -A ytkb.worker worker -Q cpu -n cpu@%h --concurrency=1 --loglevel=info

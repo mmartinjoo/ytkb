@@ -88,7 +88,6 @@ def get_latest_videos(handle: str) -> list[YoutubeVideo]:
 class DownloadedVideo(BaseModel):
     base_path: str
     chunks_path: str
-    video_path: str
     audio_path: str
     
     @staticmethod
@@ -97,7 +96,6 @@ class DownloadedVideo(BaseModel):
         downloaded_video = DownloadedVideo(
             base_path=base_path,
             chunks_path=f"{base_path}/chunks",
-            video_path=f"{base_path}/{video_id}.mp4",
             audio_path=f"{base_path}/{video_id}.m4a",
         )
         
@@ -105,40 +103,27 @@ class DownloadedVideo(BaseModel):
         Path(downloaded_video.chunks_path).mkdir(exist_ok=True, parents=True)
         return downloaded_video
 
-def download_video(video_id: int, url: str) -> DownloadedVideo:
+def download_video(video_id: int, url: str) -> tuple[str, str]:
     logger.info(f"downloading {url}")
     
-    downloaded_video = DownloadedVideo.create_for_video(video_id)
-    assert Path(downloaded_video.base_path).exists()
+    base_path = f"/tmp/{video_id}"
+    Path(base_path).mkdir(exist_ok=True, parents=True)
     
     options = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
-        "merge_output_format": "mp4",
-        "outtmpl": f"{downloaded_video.base_path}/{video_id}" + ".%(ext)s",
+        "format": "bestaudio[ext=m4a]",
+        "outtmpl": f"{base_path}/{video_id}" + ".%(ext)s",
     }
     
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(url=url, download=True)
         
-    downloaded_video.video_path = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp4"    
-    downloaded_video.audio_path = downloaded_video.audio_path.rsplit(".", 1)[0] + ".m4a"
+    audio_path = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".m4a"    
     
-    logger.info(f"video path={downloaded_video.video_path}")
-    logger.info(f"audio path={downloaded_video.audio_path}")    
+    logger.info(f"audio path={audio_path}")    
 
-    subprocess.run([
-        "ffmpeg", 
-        "-i", 
-        downloaded_video.video_path,
-        "-vn",          # no video in the audio output
-        "-c:a", "copy", # copy audio, do not re-encode
-        downloaded_video.audio_path,
-    ], check=True)
+    assert Path(audio_path).exists()
     
-    assert Path(downloaded_video.video_path).exists()
-    assert Path(downloaded_video.audio_path).exists()
-    
-    return downloaded_video
+    return base_path, audio_path
             
 def _get_youtube() -> Resource:
     return build(

@@ -35,14 +35,13 @@ def new_video(channel: Channel, title: str, url: str, youtube_id: str) -> Video:
         youtube_id=youtube_id,
     )
         
-async def update_s3_keys(video_id: int, video_file_s3_key: str, audio_file_s3_key: str):    
+async def update_s3_key(video_id: int, audio_file_s3_key: str):    
     async with SessionLocal() as session:
         await session.execute(
             update(Video)
             .where(Video.id == video_id)
             .values(
                 audio_file_s3_key = audio_file_s3_key,
-                video_file_s3_key = video_file_s3_key
             )
         )
         await session.commit()

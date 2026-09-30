@@ -24,7 +24,7 @@ async def test():
     stmt = (
         select(StepRun)
         .where(
-            StepRun.step_name == "CHUNK",
+            StepRun.step_name == "DOWNLOAD",
             StepRun.status != "PENDING"
         )
     )
