@@ -2,11 +2,10 @@ from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 
 
 class Pipeline():
-    steps: dict[str, Step] = {}
+    steps: dict[str, Step]
     
     def __init__(self, steps: list[Step]):
-        for step in steps:
-            self.steps[step.name] = step
+        self.steps = {step.name: step for step in steps}
     
     def get_step(self, name: str) -> Step:
         try:

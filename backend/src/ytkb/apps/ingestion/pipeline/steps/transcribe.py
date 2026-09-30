@@ -39,10 +39,11 @@ class TranscribeStep(Step):
             try:
                 logger.info(f"transcribing video chunk {chunk.id}")
                 
+                tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
+                
                 assert chunk.audio_file_s3_key is not None
                 
-                data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)
-                tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
+                data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)                
                 
                 with open(tmp_file_path, "wb") as f:
                     await asyncio.to_thread(f.write, data)
