@@ -6,4 +6,5 @@ app = Celery(
     "ytkb",
     broker=settings.redis_url,
     backend=settings.redis_url,
+    worker_prefetch_multiplier=1,
 )

@@ -2,10 +2,12 @@ import asyncio
 from datetime import timedelta
 from typing import ClassVar
 
-from ytkb.apps.videos.models import Video
+from sqlalchemy import select
+from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.core import qdrant
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.apps.ingestion import embedder
+from ytkb.core.db import SessionLocal
 
 
 class EmbedStep(Step):
@@ -16,13 +18,21 @@ class EmbedStep(Step):
     lease: ClassVar[timedelta] = timedelta(hours=1)
     batch_size: ClassVar[int] = 1
     concurrency: ClassVar[int] = 1
+    queue: ClassVar[str] = "cpu"
     
     async def run(self, video: Video):
-        assert len(video.chunks) != 0
+        async with SessionLocal() as session:
+            stmt = (
+                select(VideoChunk)
+                .where(VideoChunk.video_id == video.id)
+            )
+            chunks = (await session.scalars(stmt)).all()
+
+        assert len(chunks) != 0
             
         texts = []
         chunk_ids = []
-        for chunk in video.chunks:
+        for chunk in chunks:
             texts.append(chunk.content_without_timestamps)
             chunk_ids.append(chunk.id)
                 

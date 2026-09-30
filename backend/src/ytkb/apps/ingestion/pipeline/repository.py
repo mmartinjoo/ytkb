@@ -36,7 +36,7 @@ class PipelineRepository():
             )
             session.add(step_run)
         
-    async def claim(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
+    async def next(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
         step = self.pipeline.get_step(step_name.value)
         dep_names = [dep for dep in step.depends_on]
         
@@ -73,25 +73,16 @@ class PipelineRepository():
             )
             .order_by(StepRun.id)
             .limit(n)
-            .with_for_update(skip_locked=True)
             .cte("candidates")
         )
         
         stmt = (
-            update(StepRun)
+            select(StepRun.id)
             .where(StepRun.id.in_(select(candidates.c.id)))
-            .values(
-                status=StepStatus.RUNNING.value,
-                attempts=StepRun.attempts + 1,
-                started_at=datetime.now(),
-                claimed_until=datetime.now() + step.lease,
-            )
-            .returning(StepRun.id)
         )
         
         async with SessionLocal() as session:
-            ids = (await session.execute(stmt)).scalars().all()
-            await session.commit()
+            ids = (await session.scalars(stmt)).all()
             
         return ids
     
@@ -115,7 +106,7 @@ class PipelineRepository():
             await session.commit()
     
     async def mark_failed(self, step_run_id: int, step: Step, exc: Exception):
-        async with SessionLocal() as session:
+        async with SessionLocal() as session:            
             stmt = (
                 update(StepRun)
                 .where(StepRun.id == step_run_id)
@@ -129,18 +120,38 @@ class PipelineRepository():
             await session.execute(stmt)
             await session.commit()
             
-    async def mark_running(self, step_run_id: int):
+    async def mark_running(self, step_run_id: int, step: Step) -> bool:
         async with SessionLocal() as session:
+            claimable = or_(
+                StepRun.status == StepStatus.PENDING.value,
+                and_(
+                    StepRun.status == StepStatus.FAILED.value,
+                    StepRun.next_attempt_at <= datetime.now(),
+                ),
+                and_(
+                    StepRun.status == StepStatus.RUNNING.value,
+                    StepRun.claimed_until <= datetime.now(),
+                ),  # dead worker
+            )
             stmt = (
                 update(StepRun)
-                .where(StepRun.id == step_run_id)
+                .where(
+                    StepRun.id == step_run_id,
+                    claimable,
+                    StepRun.attempts < step.max_attempts,
+                )
                 .values(
                     status=StepStatus.RUNNING.value,
                     started_at=datetime.now(),
+                    claimed_at=datetime.now(),
+                    claimed_until=datetime.now() + step.lease,
+                    attempts=StepRun.attempts + 1,
                 )
+                .returning(StepRun.id)
             )
-            await session.execute(stmt)
+            claimed_id = (await session.execute(stmt)).scalar_one_or_none()
             await session.commit()
+            return claimed_id is not None
             
     async def mark_done(self, step_run_id: int):
             async with SessionLocal() as session:

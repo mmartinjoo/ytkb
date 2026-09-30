@@ -1,8 +1,6 @@
 import asyncio
 import logging
 
-from celery import group
-
 from ytkb.apps.videos.models import Video
 from ytkb.core import celery
 from ytkb.apps.videos import services as video_services
@@ -33,44 +31,18 @@ def sync_channel(channel_id: int):
     run_async(async_channel(channel_id=channel_id))
     
 @celery.app.task
-def fanout_download_tasks(n: int = 1):
-    group(download_videos.s() for _ in range(n)).apply_async()
+def fanout_ingestion_tasks(step_name: str):
+    run_async(afanout_ingestion_tasks(step_name=StepEnum(step_name)))
     
+async def afanout_ingestion_tasks(step_name: StepEnum):
+    step_run_ids = await pipeline_repository.next(step_name)
+    step = executor.pipeline.get_step(step_name.value)
+    for id in step_run_ids:        
+        execute_step.apply_async(args=[id], queue=step.queue)
+            
 @celery.app.task
-def fanout_chunk_tasks(n: int = 4):
-    group(chunk_videos.s() for _ in range(n)).apply_async()
-    
-@celery.app.task
-def fanout_transcribe_tasks(n: int = 1):
-    group(transcribe_videos.s() for _ in range(n)).apply_async()
-    
-@celery.app.task
-def fanout_embed_tasks(n: int = 1):
-    group(embed_videos.s() for _ in range(n)).apply_async()
-
-@celery.app.task
-def fanout_index_tasks(n: int = 4):
-    group(index_videos.s() for _ in range(n)).apply_async()
-
-@celery.app.task
-def download_videos():
-    run_async(executor.execute_batch(StepEnum.DOWNLOAD))
-
-@celery.app.task
-def chunk_videos():
-    run_async(executor.execute_batch(StepEnum.CHUNK))
-
-@celery.app.task
-def transcribe_videos():
-    run_async(executor.execute_batch(StepEnum.TRANSCRIBE))
-
-@celery.app.task
-def embed_videos():
-    run_async(executor.execute_batch(StepEnum.EMBED))
-
-@celery.app.task
-def index_videos():
-    run_async(executor.execute_batch(StepEnum.INDEX))
+def execute_step(step_run_id: int):
+    run_async(executor.execute(step_run_id))    
     
 def run_async(coro):
     async def main():
@@ -115,11 +87,10 @@ async def async_channel(channel_id: int):
     logger.info(f"found {len(yt_videos)} new Youtube videos")
     
     videos = [video_services.new_video(channel, v.title, v.url, v.id) for v in new_yt_videos]
-    for video in videos:
-        await pipeline_repository.enqueue_video(session=session, video=video)
-    
     async with SessionLocal() as session:
-        session.add_all(*videos)
-        await session.commit()
+        for video in videos:
+            await pipeline_repository.enqueue_video(session=session, video=video)    
+            session.add_all(*videos)
+            await session.commit()
         
     logger.info(f"created and enqueued {len(videos)} videos")

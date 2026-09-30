@@ -19,6 +19,7 @@ class DownloadStep(Step):
     lease: ClassVar[timedelta] = timedelta(hours=1)
     batch_size: ClassVar[int] = 2
     concurrency: ClassVar[int] = 1
+    queue: ClassVar[str] = "download"
     
     async def run(self, video: Video):
         logger.info(f"downloading video {video.id}")

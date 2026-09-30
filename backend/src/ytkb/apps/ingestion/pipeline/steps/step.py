@@ -17,6 +17,7 @@ class Step(ABC):
     lease: ClassVar[timedelta]
     batch_size: ClassVar[int] = 1      # how many videos a worker gets
     concurrency: ClassVar[int] = 1      # how many videos a worker processes in parallel
+    queue: ClassVar[str] = "io"
     
     @abstractmethod
     async def run(self, video: Video): ...

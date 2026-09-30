@@ -4,11 +4,13 @@ from pathlib import Path
 from typing import ClassVar
 import logging
 
+from sqlalchemy import select
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.apps.ingestion import transcriber
-from ytkb.apps.videos.models import Video
+from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.apps.videos import services as video_services
 from ytkb.core import storage
+from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -20,32 +22,45 @@ class TranscribeStep(Step):
     lease: ClassVar[timedelta] = timedelta(hours=1)
     batch_size: ClassVar[int] = 1
     concurrency: ClassVar[int] = 1
+    queue: ClassVar[str] = "cpu"
     
     async def run(self, video: Video):
-        assert len(video.chunks) != 0
         logger.info(f"transcribing video {video.id}")
-            
-        for chunk in video.chunks:
-            logger.info(f"transcribing video chunk {chunk.id}")
-            
-            assert chunk.audio_file_s3_key is not None
-            
-            data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)
-            tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
-            
-            with open(tmp_file_path, "wb") as f:
-                await asyncio.to_thread(f.write, data)
-    
-            resp = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
-            assert resp.content_with_timestamps is not None and len(resp.content_with_timestamps) != 0
-            assert resp.content_without_timestamps is not None and len(resp.content_without_timestamps) != 0
-            
-            await video_services.update_chunk_content(
-                chunk_id=chunk.id,
-                content_with_timestamps=resp.content_with_timestamps,
-                content_without_timestamps=resp.content_without_timestamps,
+        
+        async with SessionLocal() as session:
+            stmt = (
+                select(VideoChunk)
+                .where(VideoChunk.video_id == video.id)
             )
-            Path(tmp_file_path).unlink()
+            chunks = (await session.scalars(stmt)).all()
+            
+        assert len(chunks) != 0
+            
+        for chunk in chunks:
+            try:
+                logger.info(f"transcribing video chunk {chunk.id}")
+                
+                assert chunk.audio_file_s3_key is not None
+                
+                data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)
+                tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
+                
+                with open(tmp_file_path, "wb") as f:
+                    await asyncio.to_thread(f.write, data)
+        
+                resp = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
+                assert resp.content_with_timestamps is not None and len(resp.content_with_timestamps) != 0
+                assert resp.content_without_timestamps is not None and len(resp.content_without_timestamps) != 0
+                
+                await video_services.update_chunk_content(
+                    chunk_id=chunk.id,
+                    content_with_timestamps=resp.content_with_timestamps,
+                    content_without_timestamps=resp.content_without_timestamps,
+                )
+            except Exception as exc:
+                raise exc
+            finally:
+                Path(tmp_file_path).unlink(missing_ok=True)
             
         await video_services.update_video_content(video.id)
         

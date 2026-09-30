@@ -8,8 +8,14 @@ makemigration:
 runmigration:
 	uv run alembic upgrade head
 
-worker:
-	uv run celery -A ytkb.worker worker --loglevel=info
+worker-io:
+	uv run celery -A ytkb.worker worker -Q celery,io -n io@%h --loglevel=info
+
+worker-download:
+	uv run celery -A ytkb.worker worker -Q download -n download@%h --concurrency=2 --loglevel=info
+
+worker-cpu:
+	uv run celery -A ytkb.worker worker -Q cpu -n cpu@%h --concurrency=1 --loglevel=info
 
 scheduler:
 	uv run celery -A ytkb.scheduler beat --loglevel=info

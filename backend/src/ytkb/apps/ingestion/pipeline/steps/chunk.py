@@ -21,12 +21,15 @@ class ChunkStep(Step):
     lease: ClassVar[timedelta] = timedelta(minutes=15)
     batch_size: ClassVar[int] = 4
     concurrency: ClassVar[int] = 2
+    queue: ClassVar[str] = "io"
     
     async def run(self, video: Video):
         logger.info(f"chunking video {video.id}")
         assert video.audio_file_s3_key is not None and len(video.audio_file_s3_key) != 0
         
         s3_keys = await ingestion_services.chunk_audio(video=video)
+        
+        logger.info(f"{len(s3_keys)} chunks were created")
         
         await video_services.create_video_chunks(
             video=video,
