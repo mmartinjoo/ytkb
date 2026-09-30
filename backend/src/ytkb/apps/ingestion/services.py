@@ -31,7 +31,8 @@ async def move_video_asset_to_s3(video_id: int, path: str, type: VideoAssetType)
 async def chunk_audio(video: Video) -> list[S3Key]:
     logger.info(f"chunking audio for {video.id}")
     
-    data = storage.get_file(key=video.audio_file_s3_key)
+    data = await asyncio.to_thread(storage.get_file, key=video.audio_file_s3_key)
+    
     tmp_audio_path = f"/tmp/{video.id}/{video.id}.m4a"
     tmp_chunk_folder_path = f"/tmp/{video.id}/chunks"
     

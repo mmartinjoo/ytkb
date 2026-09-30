@@ -7,3 +7,5 @@ app = Celery(
     broker=settings.redis_url,
     backend=settings.redis_url,
 )
+
+app.conf.worker_prefetch_multiplier = 1

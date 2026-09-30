@@ -15,7 +15,7 @@ class IndexStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(minutes=30)
     lease: ClassVar[timedelta] = timedelta(minutes=15)
-    claim_limit: ClassVar[int] = 100
+    claim_limit: ClassVar[int] = 4
     queue: ClassVar[str] = "io"
     
     async def run(self, video: Video):

@@ -4,7 +4,6 @@ from typing import ClassVar
 import logging
 import shutil
 
-from anyio import Path
 from ytkb.core import storage
 from ytkb.apps.ingestion import youtube, services as ingestion_services
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum, VerifyError
@@ -19,12 +18,12 @@ class DownloadStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(hours=2)
     lease: ClassVar[timedelta] = timedelta(hours=1)
-    claim_limit: ClassVar[int] = 10
+    claim_limit: ClassVar[int] = 2
     queue: ClassVar[str] = "download"
     
     async def run(self, video: Video):
         try:
-            logger.info(f"downloading video {video.id}")
+            logger.info(f"downloading video {video.id}") 
             downloaded_video = await asyncio.to_thread(
                 youtube.download_video, 
                 video_id=video.id,
@@ -37,7 +36,6 @@ class DownloadStep(Step):
             )            
             
             assert len(s3_keys) == 2
-            assert not Path(downloaded_video).exists()
             
             await video_services.update_s3_keys(
                 video_id=video.id,
@@ -45,7 +43,7 @@ class DownloadStep(Step):
                 audio_file_s3_key=s3_keys[1],
             )
         finally:
-            await asyncio.to_thread(shutil.rmtree, downloaded_video.base_path)
+            await asyncio.to_thread(shutil.rmtree, f"/tmp/{video.id}", ignore_errors=True)
         
     async def verify(self, video: Video):
         audio_file_exists = await asyncio.to_thread(storage.exists, key=video.video_file_s3_key)

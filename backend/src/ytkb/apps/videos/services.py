@@ -1,4 +1,4 @@
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from ytkb.apps.videos.models import Channel, Video, VideoChunk
@@ -49,6 +49,12 @@ async def update_s3_keys(video_id: int, video_file_s3_key: str, audio_file_s3_ke
         
 async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
     async with SessionLocal() as session:
+        stmt = (
+            delete(VideoChunk)
+            .where(VideoChunk.video_id == video.id)    
+        )
+        await session.execute(stmt)
+        
         for idx, s3_key in enumerate(chunk_s3_keys):
             stmt = (
                 insert(VideoChunk)
