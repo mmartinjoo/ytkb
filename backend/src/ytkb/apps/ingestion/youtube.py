@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-import subprocess
 import logging
 
 import yt_dlp
@@ -85,25 +84,7 @@ def get_latest_videos(handle: str) -> list[YoutubeVideo]:
         
     return videos
 
-class DownloadedVideo(BaseModel):
-    base_path: str
-    chunks_path: str
-    audio_path: str
-    
-    @staticmethod
-    def create_for_video(video_id: int) -> "DownloadedVideo":
-        base_path = f"/tmp/{video_id}"
-        downloaded_video = DownloadedVideo(
-            base_path=base_path,
-            chunks_path=f"{base_path}/chunks",
-            audio_path=f"{base_path}/{video_id}.m4a",
-        )
-        
-        Path(downloaded_video.base_path).mkdir(exist_ok=True, parents=True)
-        Path(downloaded_video.chunks_path).mkdir(exist_ok=True, parents=True)
-        return downloaded_video
-
-def download_video(video_id: int, url: str) -> tuple[str, str]:
+def download_video(video_id: int, url: str) -> str:
     logger.info(f"downloading {url}")
     
     base_path = f"/tmp/{video_id}"
@@ -123,7 +104,7 @@ def download_video(video_id: int, url: str) -> tuple[str, str]:
 
     assert Path(audio_path).exists()
     
-    return base_path, audio_path
+    return audio_path
             
 def _get_youtube() -> Resource:
     return build(

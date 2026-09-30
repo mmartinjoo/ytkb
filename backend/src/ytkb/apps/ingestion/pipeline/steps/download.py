@@ -24,7 +24,7 @@ class DownloadStep(Step):
     async def run(self, video: Video):
         try:
             logger.info(f"downloading video {video.id}") 
-            _, audio_path = await asyncio.to_thread(
+            audio_path = await asyncio.to_thread(
                 youtube.download_video, 
                 video_id=video.id,
                 url=video.url,
