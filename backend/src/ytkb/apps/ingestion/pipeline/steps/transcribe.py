@@ -6,10 +6,9 @@ import logging
 
 from sqlalchemy import select
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
-from ytkb.apps.ingestion import transcriber
 from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.apps.videos import services as video_services
-from ytkb.core import storage
+from ytkb.core import storage, transcriber
 from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)

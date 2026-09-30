@@ -4,9 +4,8 @@ from typing import ClassVar
 
 from sqlalchemy import select
 from ytkb.apps.videos.models import Video, VideoChunk
-from ytkb.core import qdrant
+from ytkb.core import qdrant, embedder
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
-from ytkb.apps.ingestion import embedder
 from ytkb.core.db import SessionLocal
 
 
