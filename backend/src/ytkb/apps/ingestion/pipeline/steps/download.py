@@ -2,7 +2,9 @@ import asyncio
 from datetime import timedelta
 from typing import ClassVar
 import logging
+import shutil
 
+from anyio import Path
 from ytkb.core import storage
 from ytkb.apps.ingestion import youtube, services as ingestion_services
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum, VerifyError
@@ -22,25 +24,29 @@ class DownloadStep(Step):
     queue: ClassVar[str] = "download"
     
     async def run(self, video: Video):
-        logger.info(f"downloading video {video.id}")
-        downloaded_video = await asyncio.to_thread(
-            youtube.download_video, 
-            video_id=video.id,
-            url=video.url,
-        )
-        
-        s3_keys = await asyncio.gather(
-            ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.video_path, type=ingestion_services.VideoAssetType.VIDEO),
-            ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.audio_path, type=ingestion_services.VideoAssetType.AUDIO),
-        )
-        
-        assert len(s3_keys) == 2
-        
-        await video_services.update_s3_keys(
-            video_id=video.id,
-            video_file_s3_key=s3_keys[0],
-            audio_file_s3_key=s3_keys[1],
-        )
+        try:
+            logger.info(f"downloading video {video.id}")
+            downloaded_video = await asyncio.to_thread(
+                youtube.download_video, 
+                video_id=video.id,
+                url=video.url,
+            )
+            
+            s3_keys = await asyncio.gather(
+                ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.video_path, type=ingestion_services.VideoAssetType.VIDEO),
+                ingestion_services.move_video_asset_to_s3(video_id=video.id, path=downloaded_video.audio_path, type=ingestion_services.VideoAssetType.AUDIO),
+            )            
+            
+            assert len(s3_keys) == 2
+            assert not Path(downloaded_video).exists()
+            
+            await video_services.update_s3_keys(
+                video_id=video.id,
+                video_file_s3_key=s3_keys[0],
+                audio_file_s3_key=s3_keys[1],
+            )
+        finally:
+            await asyncio.to_thread(shutil.rmtree, downloaded_video.base_path)
         
     async def verify(self, video: Video):
         audio_file_exists = await asyncio.to_thread(storage.exists, key=video.video_file_s3_key)

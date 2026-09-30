@@ -71,8 +71,8 @@ async def adiscover_channel(channel_id: int):
             )
             videos.append(video)
             await pipeline_repository.enqueue_video(session=session, video=video)
-            session.add_all(videos)
-            await session.commit()
+        session.add_all(videos)
+        await session.commit()
         
     logger.info(f"created and enqueued {len(yt_videos)} videos")
         
@@ -90,7 +90,7 @@ async def async_channel(channel_id: int):
     async with SessionLocal() as session:
         for video in videos:
             await pipeline_repository.enqueue_video(session=session, video=video)    
-            session.add_all(*videos)
-            await session.commit()
+        session.add_all(videos)
+        await session.commit()
         
     logger.info(f"created and enqueued {len(videos)} videos")

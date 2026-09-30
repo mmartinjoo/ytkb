@@ -31,7 +31,7 @@ def transcribe(audio_file_path: str) -> TranscribeResponse:
 
     for segment in segments:
         content_without_timestamps += f"{segment.text}\n"
-        content_with_timestamps = f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
+        content_with_timestamps += f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
         print(f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n")
 
     return TranscribeResponse(

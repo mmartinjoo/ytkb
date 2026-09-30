@@ -2,6 +2,7 @@ import asyncio
 import logging
 import subprocess
 import glob
+import shutil
 from enum import Enum, auto
 from typing import TypeAlias
 from pathlib import Path
@@ -33,10 +34,11 @@ async def chunk_audio(video: Video) -> list[S3Key]:
     data = storage.get_file(key=video.audio_file_s3_key)
     tmp_audio_path = f"/tmp/{video.id}/{video.id}.m4a"
     tmp_chunk_folder_path = f"/tmp/{video.id}/chunks"
+    
     Path(tmp_chunk_folder_path).mkdir(parents=True, exist_ok=True)
     
     with open(tmp_audio_path, "wb") as f:
-        f.write(data)
+        asyncio.to_thread(f.write, data)
     
     command = [
         "ffmpeg",
@@ -49,29 +51,28 @@ async def chunk_audio(video: Video) -> list[S3Key]:
     ]
     
     try:
-        res = subprocess.run(
+        process = await asyncio.create_subprocess_exec(
             command,
-            check=True,
-            capture_output=True,
-            text=True,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
+        stdout, stderr = await process.communicate()
         
-        if res.returncode != 0:
+        if process.returncode != 0:
             raise RuntimeError(
-                f"FFmpeg failed ({res.returncode})\n"
-                f"stdout:\n{res.stdout}\n"
-                f"stderr:\n{res.stderr}"
+                f"FFmpeg failed\n"
+                f"stderr: {stderr.decode()}\n"
             )
-    except subprocess.CalledProcessError as exc:
-        logger.error("FFmpeg stderr: %s", exc.stderr)
-        raise
+            
+        logger.info(f"FFMpeg output: {stdout.decode()}")
+            
+        return await move_audio_chunks_to_s3(
+            video_id=video.id,
+            chunks_folder_path=tmp_chunk_folder_path,
+        )
     finally:
-        Path(tmp_audio_path).unlink(missing_ok=True)
-        
-    return await move_audio_chunks_to_s3(
-        video_id=video.id,
-        chunks_folder_path=tmp_chunk_folder_path,
-    )
+        await asyncio.to_thread(Path(tmp_audio_path).unlink, missing_ok=True)
+        await asyncio.to_thread(shutil.rmtree, tmp_chunk_folder_path)
     
 async def move_audio_chunks_to_s3(video_id: int, chunks_folder_path: str) -> list[S3Key]:
     assert Path(chunks_folder_path).exists()
