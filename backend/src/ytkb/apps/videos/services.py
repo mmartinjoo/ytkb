@@ -53,7 +53,7 @@ async def create_video_chunks(video: Video, chunk_s3_keys: list[str]):
             stmt = (
                 insert(VideoChunk)
                 .values(
-                    video=video,
+                    video_id=video.id,
                     position=idx,
                     audio_file_s3_key=s3_key,
                 )

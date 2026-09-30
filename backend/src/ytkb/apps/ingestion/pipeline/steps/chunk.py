@@ -3,9 +3,10 @@ import logging
 from datetime import timedelta
 from typing import ClassVar
 
+from sqlalchemy import select
 from ytkb.core import storage
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum, VerifyError
-from ytkb.apps.videos.models import Video
+from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.apps.ingestion import services as ingestion_services
 from ytkb.apps.videos import services as video_services
 from ytkb.core.db import SessionLocal
@@ -34,12 +35,16 @@ class ChunkStep(Step):
         
     async def verify(self, video: Video):
         async with SessionLocal() as session:
-            await session.refresh(video, attribute_names=["chunks"])
-        
-        if len(video.chunks) == 0:
+            stmt = (
+                select(VideoChunk)
+                .where(VideoChunk.video_id == video.id)
+            )
+            chunks = (await session.scalars(stmt)).all()
+            
+        if len(chunks) == 0:
             raise VerifyError(f"video {video.id} has 0 chunks")
         
-        for chunk in video.chunks:
+        for chunk in chunks:
             exists = await asyncio.to_thread(storage.exists, key=chunk.audio_file_s3_key)
             empty = await asyncio.to_thread(storage.empty, key=chunk.audio_file_s3_key)
             if not exists or empty:

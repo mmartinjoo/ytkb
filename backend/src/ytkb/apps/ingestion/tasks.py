@@ -11,65 +11,74 @@ from ytkb.apps.ingestion.pipeline import repository as pipeline_repository
 from ytkb.core.db import SessionLocal
 from ytkb.apps.ingestion.pipeline import executor
 from ytkb.apps.ingestion.pipeline.steps.step import StepEnum
+from ytkb.core.db import engine
 
 logger = logging.getLogger(__name__)
 
 @celery.app.task
 def discover_channel(channel_id: int):
-    asyncio.run(adiscover_channel(channel_id))
+    run_async(adiscover_channel(channel_id))
     
 @celery.app.task
 def sync_channels():
-    asyncio.run(async_channels())
+    run_async(async_channels())
+    
+async def async_channels():
+    channels = await video_services.fetch_channels()
+    for c in channels:
+        sync_channel.delay(c.id)
     
 @celery.app.task
 def sync_channel(channel_id: int):
-    asyncio.run(async_channel(channel_id=channel_id))
+    run_async(async_channel(channel_id=channel_id))
     
 @celery.app.task
-def fanout_download_tasks(n: int = 4):
+def fanout_download_tasks(n: int = 1):
     group(download_videos.s() for _ in range(n)).apply_async()
-
-@celery.app.task
-def download_videos():
-    asyncio.run(executor.execute_batch(StepEnum.DOWNLOAD))
     
 @celery.app.task
 def fanout_chunk_tasks(n: int = 4):
     group(chunk_videos.s() for _ in range(n)).apply_async()
-
-@celery.app.task
-def chunk_videos():
-    asyncio.run(executor.execute_batch(StepEnum.CHUNK))
     
 @celery.app.task
 def fanout_transcribe_tasks(n: int = 1):
     group(transcribe_videos.s() for _ in range(n)).apply_async()
-
-@celery.app.task
-def transcribe_videos():
-    asyncio.run(executor.execute_batch(StepEnum.TRANSCRIBE))
     
 @celery.app.task
 def fanout_embed_tasks(n: int = 1):
     group(embed_videos.s() for _ in range(n)).apply_async()
 
 @celery.app.task
-def embed_videos():
-    asyncio.run(executor.execute_batch(StepEnum.EMBED))
-    
-@celery.app.task
 def fanout_index_tasks(n: int = 4):
     group(index_videos.s() for _ in range(n)).apply_async()
 
 @celery.app.task
+def download_videos():
+    run_async(executor.execute_batch(StepEnum.DOWNLOAD))
+
+@celery.app.task
+def chunk_videos():
+    run_async(executor.execute_batch(StepEnum.CHUNK))
+
+@celery.app.task
+def transcribe_videos():
+    run_async(executor.execute_batch(StepEnum.TRANSCRIBE))
+
+@celery.app.task
+def embed_videos():
+    run_async(executor.execute_batch(StepEnum.EMBED))
+
+@celery.app.task
 def index_videos():
-    asyncio.run(executor.execute_batch(StepEnum.INDEX))
+    run_async(executor.execute_batch(StepEnum.INDEX))
     
-async def async_channels():
-    channels = await video_services.fetch_channels()
-    for c in channels:
-        sync_channel.delay(c.id)
+def run_async(coro):
+    async def main():
+        try:
+            return await coro
+        finally:
+            await engine.dispose()
+    return asyncio.run(main())
     
 async def adiscover_channel(channel_id: int):
     logger.info(f"discovering channel {channel_id}")

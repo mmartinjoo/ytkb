@@ -8,8 +8,8 @@ class Pipeline():
         for step in steps:
             self.steps[step.name] = step
     
-    def get_step(self, name: StepEnum) -> Step:
+    def get_step(self, name: str) -> Step:
         try:
-            return self.steps[name.value]
+            return self.steps[name]
         except KeyError as exc:
             raise ValueError(f"invalid step name: {name}")

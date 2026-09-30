@@ -83,7 +83,7 @@ services:
     command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && ./wait-for-it.sh redis:6379 && ./wait-for-it.sh qdrant:6333 && ./wait-for-it.sh minio:9000 && make worker"
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
     restart: unless-stopped
     volumes: *backend_volumes
     depends_on: *backend_dependencies
@@ -95,32 +95,18 @@ services:
       dockerfile: ./backend/Dockerfile
     command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && ./wait-for-it.sh redis:6379 && ./wait-for-it.sh qdrant:6333 && ./wait-for-it.sh minio:9000 && make scheduler"
     restart: unless-stopped
-    volumes:
-      - ./backend:/usr/src/app
-      - .env:/usr/src/app/.env
-      - exclude_api:/usr/src/app/.venv
-      - huggingface_cache:/root/.cache/huggingface
-      - fastembed_cache:/tmp/fastembed_cache
-    depends_on:
-      - postgres
-      - migrate  
-      - redis
-      - minio
-      - qdrant   
-      - meilisearch 
+    volumes: *backend_volumes
+    depends_on: *backend_dependencies
     environment: *env_vars
 
   migrate:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
-    command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && make runmigration"
+    command: sh -c "./wait-for-it.sh postgres:5432 -t 30 && make runmigration"    
     depends_on:
       - postgres
-    volumes:
-      - ./backend:/usr/src/app
-      - .env:/usr/src/app/.env
-      - exclude_api:/usr/src/app/.venv
+    volumes: *backend_volumes    
     environment: *env_vars
 
   minio:

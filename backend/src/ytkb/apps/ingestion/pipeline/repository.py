@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TypeAlias
+import traceback
 
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import aliased, selectinload
@@ -31,13 +32,13 @@ class PipelineRepository():
             step_run = StepRun(
                 pipeline_run=pipeline_run,
                 step_name=name,
-                status=StepStatus.PENDING,                    
+                status=StepStatus.PENDING.value,                    
             )
             session.add(step_run)
         
     async def claim(self, step_name: StepEnum, n: int = 100) -> list[StepRunId]:
-        step = self.pipeline.get_step(step_name)
-        dep_names = [dep.name for dep in step.depends_on]
+        step = self.pipeline.get_step(step_name.value)
+        dep_names = [dep for dep in step.depends_on]
         
         dep = aliased(StepRun)
         unfinished_deps = (
@@ -45,19 +46,19 @@ class PipelineRepository():
             .where(
                 dep.pipeline_run_id == StepRun.pipeline_run_id,
                 dep.step_name.in_(dep_names),
-                dep.status.not_in([StepStatus.DONE])
+                dep.status.not_in([StepStatus.DONE.value])
             )
             .exists()
         )
         
         claimable = or_(
-            StepRun.status == StepStatus.PENDING,
+            StepRun.status == StepStatus.PENDING.value,
             and_(
-                StepRun.status == StepStatus.FAILED,
+                StepRun.status == StepStatus.FAILED.value,
                 StepRun.next_attempt_at <= datetime.now(),
             ),
             and_(
-                StepRun.status == StepStatus.RUNNING,
+                StepRun.status == StepStatus.RUNNING.value,
                 StepRun.claimed_until <= datetime.now(),
             ),  # dead worker
         )
@@ -65,7 +66,7 @@ class PipelineRepository():
         candidates = (
             select(StepRun.id)
             .where(
-                StepRun.step_name == step_name,
+                StepRun.step_name == step_name.value,
                 claimable,
                 StepRun.attempts < step.max_attempts,
                 ~unfinished_deps,
@@ -73,13 +74,14 @@ class PipelineRepository():
             .order_by(StepRun.id)
             .limit(n)
             .with_for_update(skip_locked=True)
+            .cte("candidates")
         )
         
         stmt = (
             update(StepRun)
-            .where(StepRun.id.in_(candidates.scalar_subquery()))
+            .where(StepRun.id.in_(select(candidates.c.id)))
             .values(
-                status=StepStatus.RUNNING,
+                status=StepStatus.RUNNING.value,
                 attempts=StepRun.attempts + 1,
                 started_at=datetime.now(),
                 claimed_until=datetime.now() + step.lease,
@@ -93,14 +95,33 @@ class PipelineRepository():
             
         return ids
     
-    async def mark_failed(step_run_id: int, step: Step, exc: Exception):
+    async def reset(self, step_run_id: int):
         async with SessionLocal() as session:
             stmt = (
                 update(StepRun)
                 .where(StepRun.id == step_run_id)
                 .values(
-                    status=StepStatus.FAILED,
-                    error=repr(exc),
+                    status=StepStatus.PENDING.value,
+                    attempts=0,
+                    next_attempt_at=datetime.now(),
+                    error=None,
+                    claimed_at=None,
+                    claimed_until=None,
+                    started_at=None,
+                    finished_at=None,
+                )
+            )
+            await session.execute(stmt)
+            await session.commit()
+    
+    async def mark_failed(self, step_run_id: int, step: Step, exc: Exception):
+        async with SessionLocal() as session:
+            stmt = (
+                update(StepRun)
+                .where(StepRun.id == step_run_id)
+                .values(
+                    status=StepStatus.FAILED.value,
+                    error=self.format_error(exc),
                     next_attempt_at=datetime.now() + step.retry_backoff,
                     finished_at=datetime.now(),
                 )
@@ -108,37 +129,42 @@ class PipelineRepository():
             await session.execute(stmt)
             await session.commit()
             
-    async def mark_running(step_run_id: int):
+    async def mark_running(self, step_run_id: int):
         async with SessionLocal() as session:
             stmt = (
                 update(StepRun)
                 .where(StepRun.id == step_run_id)
                 .values(
-                    status=StepStatus.RUNNING,
+                    status=StepStatus.RUNNING.value,
                     started_at=datetime.now(),
                 )
             )
             await session.execute(stmt)
             await session.commit()
             
-    async def mark_done(step_run_id: int):
+    async def mark_done(self, step_run_id: int):
             async with SessionLocal() as session:
                 stmt = (
                     update(StepRun)
                     .where(StepRun.id == step_run_id)
                     .values(
-                        status=StepStatus.DONE,
+                        status=StepStatus.DONE.value,
                         finished_at=datetime.now(),
                     )
                 )
                 await session.execute(stmt)
                 await session.commit()
     
-    async def find_step_run_with_video(step_run_id: int) -> StepRun:
+    async def find_step_run_with_video(self, step_run_id: int) -> StepRun:
         async with SessionLocal() as session:
             return await session.get_one(
                 StepRun, 
                 step_run_id, 
-                selectinload(StepRun.pipeline_run).selectinload(PipelineRun.video),
+                options=[selectinload(StepRun.pipeline_run).selectinload(PipelineRun.video)],
             )
+            
+    def format_error(self, exc: BaseException):
+        text = "".join(traceback.format_exception(exc))
+        text = text.replace("\x00", "")                                # Postgres rejects NUL
+        return text.encode("utf-8", errors="replace").decode("utf-8")  # drops lone surrogates
             

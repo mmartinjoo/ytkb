@@ -33,7 +33,7 @@ async def chunk_audio(video: Video) -> list[S3Key]:
     data = storage.get_file(key=video.audio_file_s3_key)
     tmp_audio_path = f"/tmp/{video.id}/{video.id}.m4a"
     tmp_chunk_folder_path = f"/tmp/{video.id}/chunks"
-    Path(tmp_chunk_folder_path).mkdir(parents=True)
+    Path(tmp_chunk_folder_path).mkdir(parents=True, exist_ok=True)
     
     with open(tmp_audio_path, "wb") as f:
         f.write(data)
@@ -66,7 +66,7 @@ async def chunk_audio(video: Video) -> list[S3Key]:
         logger.error("FFmpeg stderr: %s", exc.stderr)
         raise
     finally:
-        Path(tmp_audio_path).unlink()
+        Path(tmp_audio_path).unlink(missing_ok=True)
         
     return await move_audio_chunks_to_s3(
         video_id=video.id,
