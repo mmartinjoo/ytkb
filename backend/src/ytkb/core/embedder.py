@@ -18,6 +18,7 @@ def get_model() -> TextEmbedding:
     )
 
 def embed(texts: list[str]):
+    logger.info(f"embedding {texts}")
     return list(get_model().embed(texts))
 
 async def embed2(video: Video):

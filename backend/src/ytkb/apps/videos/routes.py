@@ -20,6 +20,10 @@ async def create_channel(data: schemas.CreateChannelData):
 async def list_channels():
     return await services.get_channels()
 
+@router.post("/search/")
+async def search(data: schemas.SearchData):
+    return await services.search(data.question)
+
 @router.get("/test")
 async def test():
     stmt = (

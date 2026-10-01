@@ -38,3 +38,10 @@ def upsert(collection_name: str, vectors, video_id: int, video_chunk_ids: list[i
         collection_name=collection_name,
         points=points,
     )
+    
+def search(collection_name: str, vectors):
+    return client.query_points(
+        collection_name=collection_name, 
+        query=vectors,
+        with_payload=True,
+    )
