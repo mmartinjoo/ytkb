@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from sqlalchemy import select
 from ytkb.apps.videos.models import Video, VideoChunk
-from ytkb.core import qdrant, embedder
+from ytkb.core import embedding, qdrant
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.core.db import SessionLocal
 
@@ -34,6 +34,7 @@ class EmbedStep(Step):
             texts.append(chunk.content_without_timestamps)
             chunk_ids.append(chunk.id)
                 
+        embedder = embedding.create_embedder()
         vectors = await asyncio.to_thread(embedder.embed, texts=texts)
         await asyncio.to_thread(
             qdrant.upsert,

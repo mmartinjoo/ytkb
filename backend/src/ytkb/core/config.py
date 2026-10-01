@@ -38,4 +38,6 @@ class Settings(BaseSettings):
     
     youtube_api_key: str
     
+    embedder_provider: str = "mistral"
+    
 settings = Settings()

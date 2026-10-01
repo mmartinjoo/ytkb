@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 from ytkb.apps.videos.models import Channel, Video, VideoChunk, VideoStatus
 from ytkb.apps.videos.schemas import CreateChannelData
-from ytkb.core import embedder, qdrant
+from ytkb.core import embedding, qdrant
 from ytkb.core.db import SessionLocal
 
 async def create_channel(data: CreateChannelData) -> Channel:
@@ -151,7 +151,7 @@ async def publish(video: Video):
         await session.commit()
         
 async def search(question: str):
-    vectors = await asyncio.to_thread(embedder.embed, [question])
+    vectors = await asyncio.to_thread(embedding.embed, [question])
     results = await asyncio.to_thread(qdrant.search, "video_chunks", vectors)
     
     for point in results:
