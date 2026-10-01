@@ -4,12 +4,14 @@ from pathlib import Path
 from typing import ClassVar
 import logging
 
+from ytkb.core import transcription
 from sqlalchemy import select
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.apps.videos import services as video_services
-from ytkb.core import storage, transcriber
+from ytkb.core import storage
 from ytkb.core.db import SessionLocal
+from ytkb.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,8 @@ class TranscribeStep(Step):
     max_attempts: ClassVar[int] = 3
     retry_backoff: ClassVar[timedelta] = timedelta(hours=3)
     lease: ClassVar[timedelta] = timedelta(hours=2)
-    claim_limit: ClassVar[int] = 1
-    queue: ClassVar[str] = "cpu"
+    claim_limit: ClassVar[int] = 2
+    queue: ClassVar[str] = "io"
     
     async def run(self, video: Video):
         logger.info(f"transcribing video {video.id}")
@@ -30,36 +32,25 @@ class TranscribeStep(Step):
                 select(VideoChunk)
                 .where(VideoChunk.video_id == video.id)
             )
-            chunks = (await session.scalars(stmt)).all()
+            chunks: list[VideoChunk] = (await session.scalars(stmt)).all()
             
         assert len(chunks) != 0
             
         for chunk in chunks:
-            try:
-                logger.info(f"transcribing video chunk {chunk.id}")
-                
-                tmp_file_path = f"/tmp/{video.id}_{chunk.position}.m4a"
-                
-                assert chunk.audio_file_s3_key is not None
-                
-                data = await asyncio.to_thread(storage.get_file, key=chunk.audio_file_s3_key)                
-                
-                with open(tmp_file_path, "wb") as f:
-                    await asyncio.to_thread(f.write, data)
-        
-                resp = await asyncio.to_thread(transcriber.transcribe, tmp_file_path)
-                assert resp.content_with_timestamps is not None and len(resp.content_with_timestamps) != 0
-                assert resp.content_without_timestamps is not None and len(resp.content_without_timestamps) != 0
-                
-                await video_services.update_chunk_content(
-                    chunk_id=chunk.id,
-                    content_with_timestamps=resp.content_with_timestamps,
-                    content_without_timestamps=resp.content_without_timestamps,
-                )
-            except Exception as exc:
-                raise exc
-            finally:
-                Path(tmp_file_path).unlink(missing_ok=True)
+            logger.info(f"transcribing video chunk {chunk.id}")
+            
+            assert chunk.audio_file_s3_key
+            
+            transcriber = transcription.create_transcriber(provider=settings.transcriber_provider)
+            resp = await asyncio.to_thread(transcriber.transcribe, chunk.audio_file_s3_key)
+            assert resp.content_with_timestamps is not None and len(resp.content_with_timestamps) != 0
+            assert resp.content_without_timestamps is not None and len(resp.content_without_timestamps) != 0
+            
+            await video_services.update_chunk_content(
+                chunk_id=chunk.id,
+                content_with_timestamps=resp.content_with_timestamps,
+                content_without_timestamps=resp.content_without_timestamps,
+            )
             
         await video_services.update_video_content(video.id)
         

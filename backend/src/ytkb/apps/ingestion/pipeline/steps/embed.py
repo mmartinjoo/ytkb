@@ -7,6 +7,7 @@ from ytkb.apps.videos.models import Video, VideoChunk
 from ytkb.core import embedding, qdrant
 from ytkb.apps.ingestion.pipeline.steps.step import Step, StepEnum
 from ytkb.core.db import SessionLocal
+from ytkb.core.config import settings
 
 
 class EmbedStep(Step):
@@ -16,7 +17,7 @@ class EmbedStep(Step):
     retry_backoff: ClassVar[timedelta] = timedelta(hours=3)
     lease: ClassVar[timedelta] = timedelta(hours=2)
     claim_limit: ClassVar[int] = 5
-    queue: ClassVar[str] = "cpu"
+    queue: ClassVar[str] = "io"
     
     async def run(self, video: Video):
         async with SessionLocal() as session:
@@ -34,7 +35,7 @@ class EmbedStep(Step):
             texts.append(chunk.content_without_timestamps)
             chunk_ids.append(chunk.id)
                 
-        embedder = embedding.create_embedder()
+        embedder = embedding.create_embedder(settings.embedder_provider)
         vectors = await asyncio.to_thread(embedder.embed, texts=texts)
         await asyncio.to_thread(
             qdrant.upsert,

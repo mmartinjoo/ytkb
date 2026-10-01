@@ -21,6 +21,7 @@ x-env-vars: &env_vars
   MEILISEARCH_URL: ${MEILISEARCH_URL}
   MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY}
   EMBEDDER_PROVIDER: ${EMBEDDER_PROVIDER}
+  TRANSCRIBER_PROVIDER: ${TRANSCRIBER_PROVIDER}
 
 x-backend-volumes: &backend_volumes
   - ./backend:/usr/src/app
@@ -118,7 +119,7 @@ services:
     environment: *env_vars
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    image: cgr.dev/chainguard/minio:latest
     restart: unless-stopped
     ports:
       - "${MINIO_BACKEND_PORT}:9000"

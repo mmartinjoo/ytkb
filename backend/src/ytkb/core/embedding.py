@@ -4,7 +4,7 @@ from functools import lru_cache
 import logging
 
 from fastembed import TextEmbedding
-from mistralai import Mistral
+from mistralai.client import Mistral
 
 from ytkb.core.config import settings
 
@@ -43,9 +43,9 @@ class MistralEmbedder(Embedder):
         )
         return [item.embedding for item in response.data]
     
-def create_embedder() -> Embedder:
-    provider = EmbedderProvider(settings.embedder_provider)
-    match provider:
+def create_embedder(provider: str) -> Embedder:
+    prov = EmbedderProvider(provider.upper())
+    match prov:
         case EmbedderProvider.LOCAL:
             return LocalEmbedder()
         case EmbedderProvider.MISTRAL:

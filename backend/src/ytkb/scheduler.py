@@ -9,7 +9,7 @@ app.conf.beat_schedule = {
     },
     "fanout_download_tasks": {
         "task": "ytkb.apps.ingestion.tasks.fanout_ingestion_tasks",
-        "schedule": 5 * 60,
+        "schedule": 3 * 60,
         "args": (StepEnum.DOWNLOAD.value,),
     },
     "fanout_chunk_tasks": {
@@ -19,12 +19,12 @@ app.conf.beat_schedule = {
     },
     "fanout_transcribe_tasks": {
         "task": "ytkb.apps.ingestion.tasks.fanout_ingestion_tasks",
-        "schedule": 30 * 60,
+        "schedule": 8 * 60,
         "args": (StepEnum.TRANSCRIBE.value,),
     },
     "fanout_embed_tasks": {
         "task": "ytkb.apps.ingestion.tasks.fanout_ingestion_tasks",
-        "schedule": 20 * 60,
+        "schedule": 5 * 60,
         "args": (StepEnum.EMBED.value,),
     },
     "fanout_index_tasks": {

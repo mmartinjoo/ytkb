@@ -9,7 +9,7 @@ from ytkb.core.db import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-class ChunkStep(Step):
+class PublishStep(Step):
     name: ClassVar[str] = StepEnum.PUBLISH.value
     depends_on: ClassVar[tuple[str]] = (StepEnum.DOWNLOAD.value, StepEnum.CHUNK.value, StepEnum.TRANSCRIBE.value, StepEnum.EMBED.value, StepEnum.INDEX.value, )
     max_attempts: ClassVar[int] = 3
