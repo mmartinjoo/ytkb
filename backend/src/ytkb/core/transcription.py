@@ -66,7 +66,7 @@ class MistralTranscriber(Transriber):
     def __init__(self, api_key):
         self.client = Mistral(api_key)
         
-    def transcribe_mistral(self, audio_file_s3_key: str):
+    def transcribe(self, audio_file_s3_key: str):
         logger.info(f"transcribing {audio_file_s3_key} with Mistral...")
         data = storage.get_file(key=audio_file_s3_key)
         response = self.client.audio.transcriptions.complete(
