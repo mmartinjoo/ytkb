@@ -30,3 +30,4 @@ class StepEnum(Enum):
     TRANSCRIBE = "TRANSCRIBE"
     EMBED = "EMBED"
     INDEX = "INDEX"
+    PUBLISH = "PUBLISH"

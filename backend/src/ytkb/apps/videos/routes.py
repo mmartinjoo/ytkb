@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
 from sqlalchemy import select
-from ytkb.apps.ingestion.models import StepRun
+from ytkb.apps.ingestion.models import PipelineRun, StepRun, StepStatus
+from ytkb.apps.ingestion.pipeline.steps.step import StepEnum
 from ytkb.apps.videos import schemas, services
 from ytkb.apps.ingestion.tasks import discover_channel
 from ytkb.apps.ingestion.pipeline import repository
@@ -33,3 +34,18 @@ async def test():
         
     for sr in step_runs:
         await repository.reset(sr.id)
+
+@router.get("/test2")
+async def test2():
+    async with SessionLocal() as session:
+        pipeline_runs = (await session.scalars(select(PipelineRun))).all()
+        step_runs = []
+        
+        for pipeline in pipeline_runs:
+            step_runs.append(StepRun(
+                pipeline_run=pipeline,
+                step_name=StepEnum.PUBLISH.value,
+                status=StepStatus.PENDING.value,                
+            ))
+        session.add_all(step_runs)
+        await session.commit()

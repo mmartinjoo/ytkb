@@ -1,7 +1,7 @@
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
-from ytkb.apps.videos.models import Channel, Video, VideoChunk
+from ytkb.apps.videos.models import Channel, Video, VideoChunk, VideoStatus
 from ytkb.apps.videos.schemas import CreateChannelData
 from ytkb.core.db import SessionLocal
 
@@ -136,3 +136,13 @@ async def find_channel_with_videos(channel_id: int) -> Channel:
             channel_id,
             options=[selectinload(Channel.videos)],
         )
+        
+async def publish(video: Video):
+    async with SessionLocal() as session:
+        stmt = (
+            update(Video)
+            .where(Video.id == video.id)
+            .values(status=VideoStatus.PUBLISHED.value)
+        )
+        await session.execute(stmt)
+        await session.commit()

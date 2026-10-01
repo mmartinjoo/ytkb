@@ -32,4 +32,9 @@ app.conf.beat_schedule = {
         "schedule": 1 * 60,
         "args": (StepEnum.INDEX.value,),
     },
+    "fanout_publish_tasks": {
+        "task": "ytkb.apps.ingestion.tasks.fanout_ingestion_tasks",
+        "schedule": 1 * 60,
+        "args": (StepEnum.PUBLISH.value,),
+    },
 }
