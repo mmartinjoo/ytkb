@@ -88,4 +88,4 @@ def create_transcriber(provider: str):
         case TranscriberProvider.LOCAL:
             return LocalTranscriber()
         case TranscriberProvider.MISTRAL:
-            return MistralTranscriber()
+            return MistralTranscriber(settings.mistral_api_key)
