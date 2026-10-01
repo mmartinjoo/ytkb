@@ -1,7 +1,8 @@
 from typing import List, Optional
+import enum
 
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-from sqlalchemy import ForeignKey, String, Integer, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, String, Integer, UniqueConstraint
 
 from ytkb.core.models import Base
 
@@ -22,6 +23,10 @@ class Channel(Base):
     def __repr__(self):
         return f"Channel(id={self.id}, name={self.name}, url={self.url})"
     
+class VideoStatus(enum.Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+
 class Video(Base):
     __tablename__ = "videos__videos"
     
@@ -33,7 +38,13 @@ class Video(Base):
     channel_id: Mapped[int] = mapped_column(ForeignKey("videos__channels.id"))
     youtube_id: Mapped[str] = mapped_column(String(100), unique=True)
     audio_file_s3_key: Mapped[Optional[str]] = mapped_column(String(200))
-
+    
+    status: Mapped[VideoStatus] = mapped_column(
+        Enum(VideoStatus, name="video_status"),
+        default=VideoStatus.DRAFT,
+        server_default=VideoStatus.DRAFT.value,
+    )
+    
     channel: Mapped["Channel"] = relationship(back_populates="videos")
     chunks: Mapped[List["VideoChunk"]] = relationship(
         back_populates="video", 
